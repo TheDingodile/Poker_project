@@ -26,9 +26,9 @@ class Card():
 
 class Deck:
     def __init__(self):
-        self.reset()
         self.amount_suits = 4
         self.amount_values = 13
+        self.reset()
 
     def shuffle(self):
         random.shuffle(self.cards)
