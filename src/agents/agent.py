@@ -9,3 +9,6 @@ class Agent(nn.Module):
     def forward(self, state):
         # Implement the mapping of states to actions here
         pass
+
+    def take_action(self, state: dict[str], info: dict[str]) -> str:
+        pass

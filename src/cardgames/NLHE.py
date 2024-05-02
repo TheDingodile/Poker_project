@@ -58,7 +58,7 @@ class NLHE:
     def add_chips(self, amount, is_call=False):
         if amount >= self.stacks[self.player_to_act]:
             amount = self.stacks[self.player_to_act]
-        elif amount < 2 * max(self.total_betted_amount_in_hand) and not is_call:
+        elif amount < 2 * max(self.round_pot) and not is_call:
             assert False, "Bet is too small"
         self.stacks[self.player_to_act] -= amount
         self.total_betted_amount_in_hand[self.player_to_act] += amount
@@ -83,13 +83,13 @@ class NLHE:
         self.move_dealer_button()
         self.gather_blinds()
         self.deal_cards()
-        return self.get_state(), [0.0 for _ in range(self.amount_players)], False, {}
+        return self.get_state(), [0.0 for _ in range(self.amount_players)], False, self.get_info()
 
-    def get_reward(self):
+    def get_reward(self, is_showdown=False):
         if self.reward_when_end_of_hand:
             if self.one_player_left():
                 return [self.pot_size - self.total_betted_amount_in_hand[i] if player else -self.total_betted_amount_in_hand[i] for i, player in enumerate(self.players_in_hand)]
-            elif self.is_showdown():
+            elif is_showdown:
                 return self.get_showdown_reward()
             else:
                 return [0.0 for _ in range(self.amount_players)]
@@ -115,19 +115,18 @@ class NLHE:
             return False
         if len(set([self.round_pot[i] for i in range(self.amount_players) if self.players_in_hand[i] and self.stacks[i] > 0])) != 1:
             return False
-        print("Next round")
         return True 
 
     def step(self, action: str):
-        assert action in ["fold", "call", "check"] or action[:4] == "bet:", "cannot parse action"
+        assert action in ["f", "c"] or action[0] == "b", "cannot parse action"
         self.had_chance_to_act[self.player_to_act] = True
-        if action == "fold":
+        if action == "f":
             self.players_in_hand[self.player_to_act] = False
             self.player_to_act = self.next_player(self.player_to_act)
-        elif action == "call" or action == "check":
+        elif action == "c":
             self.add_chips(max(self.total_betted_amount_in_hand) - self.total_betted_amount_in_hand[self.player_to_act], is_call=True)
         else:
-            amount = int(action[4:])
+            amount = float(action[1:])
             self.add_chips(amount)
 
         all_folded = self.one_player_left()
@@ -135,8 +134,10 @@ class NLHE:
         go_to_next_round = self.is_next_round()
 
         # check if game is done
-        if all_folded or (is_river and go_to_next_round):
-            return self.get_state(), self.get_reward(), True, {}
+        if all_folded:
+            return self.get_state(), self.get_reward(is_showdown=False), True, {}
+        elif (is_river and go_to_next_round):
+            return self.get_state(), self.get_reward(is_showdown=True), True, {}
 
         if go_to_next_round:
             # make self.player_to_act first person after button that is still in hand
@@ -154,30 +155,45 @@ class NLHE:
             else:
                 assert False, "All community cards are already dealt"
 
-        return self.get_state(), self.get_reward(), False, {}
+        return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
         
     def get_state(self):
         return {
             "player_to_act": self.player_to_act,
             "stacks": self.stacks,
             "total_betted_amount_in_hand": self.total_betted_amount_in_hand,
-            "hands": self.hands,
+            "hand": self.hands[self.player_to_act],
             "community_cards": self.community_cards,
             "players_in_hand": self.players_in_hand,
             "round_pot": self.round_pot,
             "pot_size": self.pot_size,
             "button_position": self.button_position,
         }
-
     
-    def check_showdown_ranking(self):
+    def get_info(self):
+        return {
+            "hands": self.hands,
+            "action_space": self.get_action_space(),
+        }
+    
+    def get_action_space(self):
+        action_space = ["c"]
+        if self.stacks[self.player_to_act] > 0:
+            action_space.append("f")
+        if self.stacks[self.player_to_act] > 2 * max(self.round_pot):
+            action_space.append((max(1.0, 2 * max(self.round_pot)), self.stacks[self.player_to_act]))
+        else:
+            action_space.append(self.stacks[self.player_to_act])
+        return action_space
 
+    def check_showdown_ranking(self):
         hand_strengths = [torch.inf for _ in range(self.amount_players)]
         for i in range(self.amount_players):
             if self.players_in_hand[i]:
-                hand_strength = evaluate_cards([card.to_string() for card in self.hands[i] + self.community_cards])
+                hand_strength = evaluate_cards(*[card.to_string() for card in self.hands[i] + self.community_cards])
                 hand_strengths[i] = hand_strength
-        return torch.argsort(hand_strengths)
+        argsorted = [x for x, y in sorted(enumerate(hand_strengths), key = lambda x: x[1])]
+        return argsorted
     
     def get_showdown_reward(self):
         ranking = self.check_showdown_ranking()

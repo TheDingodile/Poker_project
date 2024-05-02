@@ -6,7 +6,7 @@ class Card():
         self.number = number
 
     def __repr__(self):
-        card_values = {11: "J", 12: "Q", 13: "K", 14: "A"}
+        card_values = {10: "T", 11: "J", 12: "Q", 13: "K", 14: "A"}
         suit_values = {0: "♠", 1: "♥", 2: "♦", 3: "♣"}
         # suit_values = {0: "s", 1: "h", 2: "d", 3: "c"}
         number_repr = card_values.get(self.number, str(self.number))
@@ -14,7 +14,7 @@ class Card():
         return f"{number_repr}{suit_repr}"
     
     def to_string(self):
-        card_values = {11: "J", 12: "Q", 13: "K", 14: "A"}
+        card_values = {10: "T", 11: "J", 12: "Q", 13: "K", 14: "A"}
         suit_values = {0: "s", 1: "h", 2: "d", 3: "c"}
         number_repr = card_values.get(self.number, str(self.number))
         suit_repr = suit_values.get(self.suit)
