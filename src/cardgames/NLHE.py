@@ -110,12 +110,11 @@ class NLHE:
         return all([card is not None for card in self.community_cards])
     
     def is_next_round(self):
-        # print([self.round_pot[i] for i in range(self.amount_players) if self.players_in_hand[i] and self.stacks[i] > 0])
         if any([not self.had_chance_to_act[i] for i in range(self.amount_players) if self.players_in_hand[i] and self.stacks[i] > 0]):
             return False
-        if len(set([self.round_pot[i] for i in range(self.amount_players) if self.players_in_hand[i] and self.stacks[i] > 0])) != 1:
-            return False
-        return True 
+        if all([self.round_pot[i] == max(self.round_pot) for i in range(self.amount_players) if self.players_in_hand[i] and self.stacks[i] > 0]):
+            return True
+        return False 
 
     def step(self, action: str):
         assert action in ["f", "c"] or action[0] == "b", "cannot parse action"
@@ -170,6 +169,9 @@ class NLHE:
             "button_position": self.button_position,
         }
     
+
+
+    
     def get_info(self):
         return {
             "hands": self.hands,
@@ -182,8 +184,8 @@ class NLHE:
             action_space.append("f")
         if self.stacks[self.player_to_act] > 2 * max(self.round_pot):
             action_space.append((max(1.0, 2 * max(self.round_pot)), self.stacks[self.player_to_act]))
-        else:
-            action_space.append(self.stacks[self.player_to_act])
+        elif self.stacks[self.player_to_act] > 0:
+            action_space.append((self.stacks[self.player_to_act], self.stacks[self.player_to_act]))
         return action_space
 
     def check_showdown_ranking(self):
@@ -210,5 +212,48 @@ class NLHE:
         return rewards
 
 
+    def print_table(self):
+        # print a small image with information about the game
 
+        community_cards = [x.__repr__() for x in self.community_cards if x is not None]
+        community_cards_str = ' '.join(community_cards)
+        community_cards_length = len(community_cards_str)
+        spaces_needed = (22 - community_cards_length) // 2
+        community_cards_display = " " * spaces_needed + community_cards_str + " " * (spaces_needed + community_cards_length % 2)
+
+        pot_size_str = f"{(self.pot_size - sum(self.round_pot)):.1f}bb"
+        pot_size_length = len(pot_size_str)
+        spaces_needed = (24 - pot_size_length) // 2
+        pot_size_display = " " * spaces_needed + pot_size_str + " " * (spaces_needed + pot_size_length % 2)
+
+        round_pot_str1 = f"{self.round_pot[0]:.1f}bb"
+        round_pot_length1 = len(round_pot_str1)
+        spaces_needed1 = (20 - round_pot_length1) // 2
+        round_pot_display1 = " " * spaces_needed1 + round_pot_str1 + " " * (spaces_needed1 + round_pot_length1 % 2)
+
+        round_pot_str2 = f"{self.round_pot[1]:.1f}bb"
+        round_pot_length2 = len(round_pot_str2)
+        spaces_needed2 = (20 - round_pot_length2) // 2
+        round_pot_display2 = " " * spaces_needed2 + round_pot_str2 + " " * (spaces_needed2 + round_pot_length2 % 2)
+        
+        info0 = "--> " if self.player_to_act == 0 else "" 
+        info0 = info0 + "p0: " + " ".join([x.__repr__() for x in self.hands[0] if x is not None])
+
+        info1 = "--> " if self.player_to_act == 1 else ""
+        info1 = info1 + "p1: " + " ".join([x.__repr__() for x in self.hands[1] if x is not None])
+
+
+        print()
+        print(f"       {info0}")
+        print(f"       {self.stacks[0]}bb  ")
+        print("      ------------------")
+        print(f"    /{round_pot_display1}\\" + str(" D" if self.button_position == 0 else ""))
+        print(f"   /                      \\")
+        print(f"  |{pot_size_display}|     ")
+        print(f"   \\{community_cards_display}/")
+        print(f"    \\{round_pot_display2}/" + str(" D" if self.button_position == 1 else ""))
+        print("      ------------------")
+        print(f"       {self.stacks[1]}bb  ")
+        print(f"       {info1}")
+        print()
 

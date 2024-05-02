@@ -11,12 +11,17 @@ agents: list[Agent] = [RandomAgent(bet_sizes=bet_sizes), RandomAgent(bet_sizes=b
 
 game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)
 
-for _ in range(100):
+for i in range(10000):
     state, reward, done, info = game.new_hand() 
+    print("starting hand number", i)
     while True:
-        time.sleep(1)
+        time.sleep(0.5)
         action = agents[game.player_to_act].take_action(state, info)
+        game.print_table()
         print(action)
+        # print(state)
+        # print(info)
+        # print(action)
         state, reward, done, info = game.step(action)
         if done:
             break
