@@ -13,13 +13,11 @@ game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)
 
 for i in range(1000000):
     state, reward, done, info = game.new_hand() 
-    if i % 1000 == 0:
-        print("starting hand number", i)
+    # print("starting hand number", i)
     while True:
         action = agents[game.player_to_act].take_action(state, info)
         # game.print_table()
         state, reward, done, info = game.step(action)
         if done:
             break
-
 

@@ -2,6 +2,7 @@ import torch
 import random
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 class RandomAgent(nn.Module):
     def __init__(self, bet_sizes: list[float] = [0.2, 0.5, 1, 2]):
@@ -15,7 +16,8 @@ class RandomAgent(nn.Module):
         if not isinstance(random_action, tuple):
             return random_action
         else:
-            sizes = [x * state["pot_size"] for x in self.bet_sizes]
+            # select random bet size, round up to nearest integer
+            sizes = [math.ceil(x * state["pot_size"]) for x in self.bet_sizes]
             sizes = [x for x in sizes if x >= random_action[0] and x <= random_action[1]]
             sizes.append(random_action[1])
             sizes = [f"b{bet_size:.1f}" for bet_size in sizes]

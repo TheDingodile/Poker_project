@@ -58,13 +58,19 @@ class NLHE:
         self.community_cards = [None, None, None, None, None]
         self.deck.reset()
 
-    def add_chips(self, amount, is_call=False):
+    def get_min_bet(self):
+        sorted_bet_sizes = sorted(self.round_pot)
+        last_raise = sorted_bet_sizes[-1] - sorted_bet_sizes[-2]
+        to_call = sorted_bet_sizes[-1] - self.round_pot[self.player_to_act]
+        return max(1, last_raise) + to_call
+
+    def add_chips(self, amount, is_call=False, blinds=False):
         if (amount + 0.5) >= self.stacks[self.player_to_act]:
             amount = self.stacks[self.player_to_act]
-        elif amount < 2 * max(self.round_pot) and not is_call:
+        elif not blinds and not is_call and amount < self.get_min_bet():
             print(self.get_action_space())
             self.print_table()
-            assert False, f"Bet of {amount} has to by minimum {2 * max(self.round_pot)} and so is too small"
+            assert False, f"Bet of {amount} has to by minimum {self.get_min_bet()} and so is too small"
         self.stacks[self.player_to_act] -= amount
         self.total_betted_amount_in_hand[self.player_to_act] += amount
         self.round_pot[self.player_to_act] += amount
@@ -72,8 +78,8 @@ class NLHE:
         self.player_to_act = self.next_player(self.player_to_act)
 
     def gather_blinds(self):
-        self.add_chips(0.5)
-        self.add_chips(1.0)
+        self.add_chips(0.5, blinds=True)
+        self.add_chips(1.0, blinds=True)
 
     def new_hand(self):
         self.pot_size = 0
@@ -195,8 +201,9 @@ class NLHE:
         action_space = ["c"]
         if self.stacks[self.player_to_act] > 0:
             action_space.append("f")
-        if self.stacks[self.player_to_act] > 2 * max(self.round_pot):
-            action_space.append((max(1.0, 2 * max(self.round_pot)), self.stacks[self.player_to_act]))
+        min_bet = self.get_min_bet()
+        if self.stacks[self.player_to_act] >= min_bet:
+            action_space.append((max(1.0, min_bet), self.stacks[self.player_to_act]))
         elif self.stacks[self.player_to_act] > 0:
             action_space.append((self.stacks[self.player_to_act], self.stacks[self.player_to_act]))
         return action_space
