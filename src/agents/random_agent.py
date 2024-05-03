@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import math
 
 class RandomAgent(nn.Module):
-    def __init__(self, bet_sizes: list[float] = [0.2, 0.5, 1, 2]):
+    def __init__(self, bet_sizes: list[float] = [0.1, 0.2, 0.5, 1, 2, 5]):
         super(RandomAgent, self).__init__()
         self.bet_sizes = bet_sizes
 

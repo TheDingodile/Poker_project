@@ -2,6 +2,8 @@ from src.cardgames.StandardDeck import Card, Deck
 import torch
 from phevaluator.evaluator import evaluate_cards
 from src.utils import argsorted_index_lists
+import math
+import time
 
 class Player:
     def __init__(self, name):
@@ -58,18 +60,20 @@ class NLHE:
         self.community_cards = [None, None, None, None, None]
         self.deck.reset()
 
+    def round_nearest_sb(self, amount):
+        return math.ceil(amount * 2) / 2
+
     def get_min_bet(self):
         sorted_bet_sizes = sorted(self.round_pot)
         last_raise = sorted_bet_sizes[-1] - sorted_bet_sizes[-2]
         to_call = sorted_bet_sizes[-1] - self.round_pot[self.player_to_act]
-        return max(1, last_raise) + to_call
+        return self.round_nearest_sb(max(1, last_raise) + to_call)
 
     def add_chips(self, amount, is_call=False, blinds=False):
+        amount = self.round_nearest_sb(amount)
         if (amount + 0.5) >= self.stacks[self.player_to_act]:
             amount = self.stacks[self.player_to_act]
         elif not blinds and not is_call and amount < self.get_min_bet():
-            print(self.get_action_space())
-            self.print_table()
             assert False, f"Bet of {amount} has to by minimum {self.get_min_bet()} and so is too small"
         self.stacks[self.player_to_act] -= amount
         self.total_betted_amount_in_hand[self.player_to_act] += amount
@@ -130,7 +134,23 @@ class NLHE:
         return False 
 
     def step(self, action: str):
-        assert action in ["f", "c"] or action[0] == "b", "cannot parse action"
+        # check action legality
+        if action not in ["f", "c"] and (len(action) == 0 or action[0] != "b"):
+            print("action not understood, taking call action")
+            print("action space is", self.get_action_space())
+            return self.step(action="c")
+        elif action[0] == "b":
+            try:
+                amount = float(action[1:])
+                if amount < self.get_min_bet() and amount != self.stacks[self.player_to_act]:
+                    print("betted amount too small, taking call action")
+                    print("action space is", self.get_action_space())
+                    return self.step(action="c")
+            except:
+                print("betted amount not understood, taking call action")
+                print("action space is", self.get_action_space())
+                return self.step(action="c")
+                
         self.had_chance_to_act[self.player_to_act] = True
         if action == "f":
             self.players_in_hand[self.player_to_act] = False
