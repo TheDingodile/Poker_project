@@ -2,35 +2,24 @@ from src.cardgames.NLHE import NLHE
 from src.agents.random_agent import RandomAgent
 from src.agents.keyboard_agent import KeyboardAgent
 from src.agents.call_agent import CallAgent
+from src.agents.fold_agent import FoldAgent
 from src.agents.agent import Agent
 import time
+import matplotlib.pyplot as plt
 
-stack_depth_bb = 100
-bet_sizes = [0.2, 0.5, 1, 2]
-agents: list[Agent] = [RandomAgent(bet_sizes=bet_sizes), CallAgent()]
+stack_depth_bb: int = 100
+agents: list[Agent] = [RandomAgent(), RandomAgent()]
+game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)  
 
-game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)
-
-for i in range(10000):
+for i in range(1000000):
     state, reward, done, info = game.new_hand() 
-    print("starting hand number", i)
+    if i % 1000 == 0:
+        print("starting hand number", i)
     while True:
-        time.sleep(0.5)
         action = agents[game.player_to_act].take_action(state, info)
-        game.print_table()
-        print(action)
-        # print(state)
-        # print(info)
-        # print(action)
+        # game.print_table()
         state, reward, done, info = game.step(action)
         if done:
-            print(reward)
             break
-    # print(f"rewards {reward}")
-    # print(info)
-    # print(game.stacks)
-# measure time
-
-    
 
 

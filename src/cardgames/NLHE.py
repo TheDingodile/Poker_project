@@ -1,6 +1,7 @@
 from src.cardgames.StandardDeck import Card, Deck
 import torch
 from phevaluator.evaluator import evaluate_cards
+from src.utils import argsorted_index_lists
 
 class Player:
     def __init__(self, name):
@@ -34,7 +35,7 @@ class NLHE:
         self.community_cards = [None, None, None, None, None]
         self.history = []
         self.total_earnings = [0.0 for _ in range(self.amount_players)]
-        
+
 
     def deal_cards(self):
         for j in range(2):
@@ -58,10 +59,12 @@ class NLHE:
         self.deck.reset()
 
     def add_chips(self, amount, is_call=False):
-        if amount >= self.stacks[self.player_to_act]:
+        if (amount + 0.5) >= self.stacks[self.player_to_act]:
             amount = self.stacks[self.player_to_act]
         elif amount < 2 * max(self.round_pot) and not is_call:
-            assert False, "Bet is too small"
+            print(self.get_action_space())
+            self.print_table()
+            assert False, f"Bet of {amount} has to by minimum {2 * max(self.round_pot)} and so is too small"
         self.stacks[self.player_to_act] -= amount
         self.total_betted_amount_in_hand[self.player_to_act] += amount
         self.round_pot[self.player_to_act] += amount
@@ -92,7 +95,9 @@ class NLHE:
             if self.one_player_left():
                 return [self.pot_size - self.total_betted_amount_in_hand[i] if player else -self.total_betted_amount_in_hand[i] for i, player in enumerate(self.players_in_hand)]
             elif is_showdown:
-                return self.get_showdown_reward()
+                pot_distribution = self.distribute_pot()
+                reward = [x - y for x, y in zip(pot_distribution, self.total_betted_amount_in_hand)]
+                return reward
             else:
                 return [0.0 for _ in range(self.amount_players)]
         else:
@@ -135,10 +140,10 @@ class NLHE:
         go_to_next_round = self.is_next_round()
 
         # check if game is done
-        if all_folded:
-            return self.get_state(), self.get_reward(is_showdown=False), True, {}
-        elif (is_river and go_to_next_round):
-            return self.get_state(), self.get_reward(is_showdown=True), True, {}
+        if all_folded or (is_river and go_to_next_round):
+            reward = self.get_reward(is_showdown=not all_folded)
+            self.total_earnings = [sum(x) for x in zip(self.total_earnings, reward)]
+            return self.get_state(), reward, True, {}
 
         if go_to_next_round:
             # make self.player_to_act first person after button that is still in hand
@@ -146,15 +151,21 @@ class NLHE:
             self.round_pot = [0.0 for _ in range(self.amount_players)]
             self.had_chance_to_act = [False for _ in range(self.amount_players)]
             if self.community_cards[2] is None:
+                self.deck.burn_card()
                 self.community_cards[0] = self.deck.deal_card()
                 self.community_cards[1] = self.deck.deal_card()
                 self.community_cards[2] = self.deck.deal_card()
             elif self.community_cards[3] is None:
+                self.deck.burn_card()
                 self.community_cards[3] = self.deck.deal_card()
             elif self.community_cards[4] is None:
+                self.deck.burn_card()
                 self.community_cards[4] = self.deck.deal_card()
             else:
                 assert False, "All community cards are already dealt"
+
+        if self.stacks[self.player_to_act] == 0:
+            return self.step(action="c")
 
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
         
@@ -196,21 +207,39 @@ class NLHE:
             if self.players_in_hand[i]:
                 hand_strength = evaluate_cards(*[card.to_string() for card in self.hands[i] + self.community_cards])
                 hand_strengths[i] = hand_strength
-        argsorted = [x for x, y in sorted(enumerate(hand_strengths), key = lambda x: x[1])]
-        return argsorted
+        # argsorted = [x for x, y in sorted(enumerate(hand_strengths), key = lambda x: x[1])]
+        return argsorted_index_lists(hand_strengths)
     
-    def get_showdown_reward(self):
+    def distribute_pot(self):
         ranking = self.check_showdown_ranking()
         # filter out players that are not in hand
-        ranking = [player for player in ranking if self.players_in_hand[player]]
+        # ranking = [player for player in ranking if self.players_in_hand[player]]
+
         rewards = [0 for _ in range(self.amount_players)]
         contributions_to_pot = self.total_betted_amount_in_hand.copy()
+
         for i in range(len(ranking)):
-            my_contribution = contributions_to_pot[ranking[i]]
-            contributions_to_pot_for_me = [min(my_contribution, x) for x in contributions_to_pot]
-            rewards[ranking[i]] = sum(contributions_to_pot_for_me)
+            ranking[i] = [x for x in ranking[i] if contributions_to_pot[x] > 0]
+            if not ranking[i]:
+                continue
+            our_contributions_to_pot = [contributions_to_pot[x] for x in ranking[i]]
+            our_max_contribution_to_pot = max(our_contributions_to_pot)
+            all_contribution_to_our_pot = [min(our_max_contribution_to_pot, x) for x in contributions_to_pot]
+            our_contributions_to_pot_total = sum(our_contributions_to_pot)
+            our_ratio_of_pot = [x/our_contributions_to_pot_total for x in our_contributions_to_pot]
+            our_pot = sum(all_contribution_to_our_pot)
+            for k, winner in enumerate(ranking[i]):
+                rewards[winner] = our_pot * our_ratio_of_pot[k]
+                
             for j in range(self.amount_players):
-                contributions_to_pot[j] -= min(contributions_to_pot_for_me[j], contributions_to_pot[j])
+                contributions_to_pot[j] -= min(all_contribution_to_our_pot[j], contributions_to_pot[j])
+
+        # for i in range(len(ranking)):
+        #     my_contribution = contributions_to_pot[ranking[i]]
+        #     contributions_to_pot_for_me = [min(my_contribution, x) for x in contributions_to_pot]
+        #     rewards[ranking[i]] = sum(contributions_to_pot_for_me)
+        #     for j in range(self.amount_players):
+        #         contributions_to_pot[j] -= min(contributions_to_pot_for_me[j], contributions_to_pot[j])
         return rewards
 
 
