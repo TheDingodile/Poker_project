@@ -33,6 +33,8 @@ class NLHE:
         self.reward_when_end_of_hand = reward_when_end_of_hand
         self.community_cards = [None, None, None, None, None]
         self.history = []
+        self.total_earnings = [0.0 for _ in range(self.amount_players)]
+        
 
     def deal_cards(self):
         for j in range(2):

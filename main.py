@@ -7,7 +7,7 @@ import time
 
 stack_depth_bb = 100
 bet_sizes = [0.2, 0.5, 1, 2]
-agents: list[Agent] = [RandomAgent(bet_sizes=bet_sizes), RandomAgent(bet_sizes=bet_sizes)]
+agents: list[Agent] = [RandomAgent(bet_sizes=bet_sizes), CallAgent()]
 
 game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)
 
@@ -24,6 +24,7 @@ for i in range(10000):
         # print(action)
         state, reward, done, info = game.step(action)
         if done:
+            print(reward)
             break
     # print(f"rewards {reward}")
     # print(info)
