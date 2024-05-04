@@ -1,4 +1,5 @@
 from src.cardgames.NLHE import NLHE
+from src.cardgames.Parallelized_NLHE import Parallelized_NLHE
 from src.cardgames.PBS_NLHE import PBS_NLHE
 from src.agents.random_agent import RandomAgent
 from src.agents.keyboard_agent import KeyboardAgent
@@ -25,17 +26,46 @@ agents: list[Agent] = [KeyboardAgent(), KeyboardAgent()]
 #         if done:
 #             break
 
+tables = 5
+games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
+state, reward, done, info = games.new_hands() 
+print(reward)
 
-PBS_games = PBS_NLHE([NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb) for _ in range(5)])
 for i in range(1000000):
-    state, reward, done, info = PBS_games.new_hand() 
-    PBS_games.print_table()
-    # print("starting game number", i)
-    while True:
-        action = agents[PBS_game.player_to_act].take_action_PBS(state, info)
-        state, reward, done, info = PBS_game.step(action)
-        PBS_game.print_table()
-        print(PBS_game.get_action_space())
-        if done:
-            break
+    # games.print_table(0)
+    # print(games.get_action_space(0))
+    # print("played a total of ", games.played_hands, "hands")
+    actions = games.take_actions(state, info, agents)
+    state, reward, done, info = games.step(actions)
+
+
+
+
+tables = 5
+games = Parallelized_NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
+PKS_games = PBS_NLHE(games)
+state, reward, done, info = PKS_games.new_hands() 
+
+for i in range(1000000):
+    # games.print_table(0)
+    # print(games.get_action_space(0))
+    # print("played a total of ", games.played_hands, "hands")
+    actions = PKS_games.take_actions(state, info, agents)
+    state, reward, done, info = games.step(actions)
+
+
+
+
+# PBS_games = PBS_NLHE([NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb) for _ in range(5)])
+# for i in range(1000000):
+#     state, reward, done, info = PBS_games.new_hand() 
+#     PBS_games.print_table()
+#     # print("starting game number", i)
+#     while True:
+#         action = agents[PBS_game.player_to_act].take_action_PBS(state, info)
+#         state, reward, done, info = PBS_game.step(action)
+#         PBS_game.print_table()
+#         print(PBS_game.get_action_space())
+#         if done:
+#             break
 

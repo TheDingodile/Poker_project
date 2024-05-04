@@ -10,14 +10,12 @@ class RandomAgent(nn.Module):
         self.bet_sizes = bet_sizes
 
     def take_action(self, state: dict[str], info: dict[str]) -> str:
-        # select random element in action space
-        action_space = info["action_space"]
-        random_action = random.choice(action_space)
+        random_action = random.choice(info["action_space"])
         if not isinstance(random_action, tuple):
             return random_action
         else:
             # select random bet size, round up to nearest integer
-            sizes = [math.ceil(x * state["pot_size"]) for x in self.bet_sizes]
+            sizes = [math.ceil(x * info["pot_size"]) for x in self.bet_sizes]
             sizes = [x for x in sizes if x >= random_action[0] and x <= random_action[1]]
             sizes.append(random_action[1])
             sizes = [f"b{bet_size:.1f}" for bet_size in sizes]

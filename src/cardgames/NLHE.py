@@ -183,6 +183,14 @@ class NLHE:
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
         
     def get_state(self):
+        state = dict()
+        common_knowledge_state = torch.empty(size=(self.amount_players, 2, 2), dtype=torch.float)
+        for i in range(self.amount_players):
+            for j in range(2):
+                common_knowledge_state[i][j] = torch.tensor([self.hands[i][j].suit, self.hands[i][j].value], dtype=torch.float)
+        return 
+    
+    def get_info(self):
         return {
             "player_to_act": self.player_to_act,
             "stacks": self.stacks,
@@ -193,10 +201,6 @@ class NLHE:
             "round_pot": self.round_pot,
             "pot_size": self.pot_size,
             "button_position": self.button_position,
-        }
-    
-    def get_info(self):
-        return {
             "hands": self.hands,
             "action_space": self.get_action_space(),
         }
