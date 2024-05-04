@@ -1,9 +1,13 @@
 import random
 
+
 class Card():
-    def __init__(self, suit: int, number: int):
+    def __init__(self, suit: int, number: int, amount_suits = 4, amount_values = 13):
+        self.amount_suits = amount_suits
+        self.amount_values = amount_values
         self.suit = suit
         self.number = number
+        self.id = suit + (number - 2) * self.amount_suits
 
     def __repr__(self):
         card_values = {10: "T", 11: "J", 12: "Q", 13: "K", 14: "A"}
@@ -25,9 +29,9 @@ class Card():
     
 
 class Deck:
-    def __init__(self):
-        self.amount_suits = 4
-        self.amount_values = 13
+    def __init__(self, amount_suits = 4, amount_values = 13):
+        self.amount_suits = amount_suits
+        self.amount_values = amount_values
         self.reset()
 
     def shuffle(self):

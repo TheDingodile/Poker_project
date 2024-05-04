@@ -3,27 +3,13 @@ import torch
 from phevaluator.evaluator import evaluate_cards
 from src.utils import argsorted_index_lists
 import math
-import time
-
-class Player:
-    def __init__(self, name):
-        self.name = name
-        self.hand = []
-
-    def receive_card(self, card):
-        self.hand.append(card)
-
-    def show_hand(self):
-        for card in self.hand:
-            print(f"{card}", end=" ")
-        print()
 
 class NLHE:
     def __init__(self, amount_players, stack_depth_bb=100, refresh_stack=True, reward_when_end_of_hand=True):
         self.deck = Deck()
         self.amount_players = amount_players
         self.button_position: int = 0
-        self.player_to_act = None
+        self.player_to_act: int = 0
         self.pot_size: float = 0.0
         self.stack_depth_bb = stack_depth_bb
         self.stacks = [stack_depth_bb for _ in range(self.amount_players)]
@@ -44,6 +30,7 @@ class NLHE:
             for i in range(self.amount_players):
                 card = self.deck.deal_card()
                 self.hands[i][j] = card
+        # self.hands = [sorted(player, key=lambda x: x.id, reverse=True) for player in self.hands]
 
     def next_player(self, player):
         for i in range(player + 1, player + self.amount_players):
@@ -208,9 +195,6 @@ class NLHE:
             "button_position": self.button_position,
         }
     
-
-
-    
     def get_info(self):
         return {
             "hands": self.hands,
@@ -270,7 +254,7 @@ class NLHE:
         return rewards
 
 
-    def print_table(self):
+    def print_table(self, P0_hide=False, P1_hide=False):
         # print a small image with information about the game
 
         community_cards = [x.__repr__() for x in self.community_cards if x is not None]
@@ -295,10 +279,16 @@ class NLHE:
         round_pot_display2 = " " * spaces_needed2 + round_pot_str2 + " " * (spaces_needed2 + round_pot_length2 % 2)
         
         info0 = "--> " if self.player_to_act == 0 else "" 
-        info0 = info0 + "p0: " + " ".join([x.__repr__() for x in self.hands[0] if x is not None])
+        if not P0_hide:
+            info0 = info0 + "p0: " + " ".join([x.__repr__() for x in self.hands[0] if x is not None])
+        else:
+            info0 = info0 + "p0: " + " ".join(["??" for x in self.hands[0] if x is not None])
 
         info1 = "--> " if self.player_to_act == 1 else ""
-        info1 = info1 + "p1: " + " ".join([x.__repr__() for x in self.hands[1] if x is not None])
+        if not P1_hide:
+            info1 = info1 + "p1: " + " ".join([x.__repr__() for x in self.hands[1] if x is not None])
+        else:
+            info1 = info1 + "p1: " + " ".join(["??" for x in self.hands[1] if x is not None])
 
 
         print()
