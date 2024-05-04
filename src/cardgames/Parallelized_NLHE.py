@@ -20,11 +20,11 @@ class Parallelized_NLHE:
     def step(self, actions):
         for i, is_done in enumerate(self.dones):
             if is_done:
-                self.played_hands += 1
                 self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.games[i].new_hand()
             else:
                 self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.games[i].step(actions[i])
 
+        self.played_hands += sum(self.dones)
         return self.states, self.rewards, self.dones, self.infos
     
     def take_actions(self, states: list[torch.Tensor], infos: list[dict[str]], agents: list[Agent]) -> list[str]:

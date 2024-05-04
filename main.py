@@ -27,7 +27,7 @@ agents: list[Agent] = [RandomAgent(), RandomAgent()]
 #         if done:
 #             break
 
-tables = 100000
+tables = 10000
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
 state, reward, done, info = games.new_hands() 
 # print(state, reward, done, info)
