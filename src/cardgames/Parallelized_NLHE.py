@@ -17,7 +17,7 @@ class Parallelized_NLHE:
     def new_hands(self):
         return [list(result) for result in zip(*(game.new_hand() for game in self.games))]
     
-    def step(self, actions):
+    def step(self, actions: list[str]) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:
         for i, is_done in enumerate(self.dones):
             if is_done:
                 self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.games[i].new_hand()
