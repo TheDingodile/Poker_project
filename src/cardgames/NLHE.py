@@ -20,7 +20,7 @@ class NLHE:
         self.had_chance_to_act = [False for _ in range(self.amount_players)]
         self.refresh_stack = refresh_stack
         self.reward_when_end_of_hand = reward_when_end_of_hand
-        self.community_cards = [None, None, None, None, None]
+        self.community_cards: list[Card] = [None, None, None, None, None]
         self.history = []
         self.total_earnings = [0.0 for _ in range(self.amount_players)]
 
@@ -183,12 +183,25 @@ class NLHE:
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
         
     def get_state(self):
-        state = dict()
-        common_knowledge_state = torch.empty(size=(self.amount_players, 2, 2), dtype=torch.float)
+        # pot_size to stack, round_pot to pot_size, who to act, who is button, community_cards
+        player_features = self.amount_players * 2
+        table_features = 2
+        community_card_features = (3 + 1 + 1) * 52
+        state = torch.zeros(size=(player_features + table_features + community_card_features,), dtype=torch.float)
         for i in range(self.amount_players):
-            for j in range(2):
-                common_knowledge_state[i][j] = torch.tensor([self.hands[i][j].suit, self.hands[i][j].value], dtype=torch.float)
-        return 
+            state[i * 2 + 0] = self.pot_size / (self.stacks[i] + self.pot_size)
+            state[i * 2 + 1] = self.round_pot[i] / self.pot_size
+        state[player_features] = self.player_to_act
+        state[player_features + 1] = self.button_position
+        for i, card in enumerate(self.community_cards):
+            if card is not None:
+                if i <= 2:
+                    state[player_features + table_features + card.id] = 1.0
+                elif i == 3:
+                    state[player_features + table_features + 52 + card.id] = 1.0
+                elif i == 4:
+                    state[player_features + table_features + 52 + 52 + card.id] = 1.0
+        return state
     
     def get_info(self):
         return {

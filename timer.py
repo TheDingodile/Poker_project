@@ -1,5 +1,6 @@
 import torch
 import time
+
 for _ in range(10):
     start = time.time()
     k = []

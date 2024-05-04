@@ -20,3 +20,6 @@ class RandomAgent(nn.Module):
             sizes.append(random_action[1])
             sizes = [f"b{bet_size:.1f}" for bet_size in sizes]
             return random.choice(sizes)
+        
+    def take_action_multiple(self, state: torch.Tensor, info: list[dict[str]]) -> list[str]:
+        return [self.take_action(state, info_) for info_ in info]

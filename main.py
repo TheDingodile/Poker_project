@@ -10,48 +10,48 @@ import time
 import matplotlib.pyplot as plt
 
 stack_depth_bb: int = 100
-agents: list[Agent] = [KeyboardAgent(), KeyboardAgent()]
+agents: list[Agent] = [RandomAgent(), RandomAgent()]
 
 # game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)  
 # for i in range(1000000):
 #     state, reward, done, info = game.new_hand() 
-#     game.print_table()
-#     print(game.get_action_space())
-#     # print("starting hand number", i)
+#     # game.print_table()
+#     # print(game.get_action_space())
+#     if i % 10000 == 0:
+#         print("starting hand number", i)
 #     while True:
 #         action = agents[game.player_to_act].take_action(state, info)
 #         state, reward, done, info = game.step(action)
-#         game.print_table()
-#         print(game.get_action_space())
+#         # game.print_table()
+#         # print(game.get_action_space())
 #         if done:
 #             break
 
-tables = 5
+tables = 100000
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
 state, reward, done, info = games.new_hands() 
-print(reward)
-
+# print(state, reward, done, info)
 for i in range(1000000):
     # games.print_table(0)
     # print(games.get_action_space(0))
-    # print("played a total of ", games.played_hands, "hands")
+    print("played a total of", games.played_hands, "hands")
     actions = games.take_actions(state, info, agents)
     state, reward, done, info = games.step(actions)
 
 
 
 
-tables = 5
-games = Parallelized_NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
-PKS_games = PBS_NLHE(games)
-state, reward, done, info = PKS_games.new_hands() 
+# tables = 5
+# games = Parallelized_NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
+# PKS_games = PBS_NLHE(games)
+# state, reward, done, info = PKS_games.new_hands() 
 
-for i in range(1000000):
-    # games.print_table(0)
-    # print(games.get_action_space(0))
-    # print("played a total of ", games.played_hands, "hands")
-    actions = PKS_games.take_actions(state, info, agents)
-    state, reward, done, info = games.step(actions)
+# for i in range(1000000):
+#     # games.print_table(0)
+#     # print(games.get_action_space(0))
+#     # print("played a total of ", games.played_hands, "hands")
+#     actions = PKS_games.take_actions(state, info, agents)
+#     state, reward, done, info = games.step(actions)
 
 
 
