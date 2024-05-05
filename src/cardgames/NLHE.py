@@ -120,23 +120,26 @@ class NLHE:
             return True
         return False 
 
-    def step(self, action: str):
+    def step(self, action: str, print_action_legality=False):
         # check action legality
         if action not in ["f", "c"] and (len(action) == 0 or action[0] != "b"):
-            print("action not understood, taking call action")
-            print("action space is", self.get_action_space())
+            if print_action_legality:
+                print("action not understood, taking call action")
+                print("action space is", self.get_action_space())
             return self.step(action="c")
         elif action[0] == "b":
             try:
                 amount = float(action[1:])
                 if amount < self.get_min_bet() and amount != self.stacks[self.player_to_act]:
-                    print("betted amount too small, taking call action")
-                    print("action space is", self.get_action_space())
+                    if print_action_legality:
+                        print("betted amount too small, taking call action")
+                        print("action space is", self.get_action_space())
                     return self.step(action="c")
             except:
-                print("betted amount not understood, taking call action")
-                print("action space is", self.get_action_space())
-                print("your bet was", action)
+                if print_action_legality:
+                    print("betted amount not understood, taking call action")
+                    print("action space is", self.get_action_space())
+                    print("your bet was", action)
                 return self.step(action="c")
                 
         self.had_chance_to_act[self.player_to_act] = True

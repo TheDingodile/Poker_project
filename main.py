@@ -10,7 +10,7 @@ import time
 import matplotlib.pyplot as plt
 
 stack_depth_bb: int = 100
-tables = 5
+tables = 3
 bet_sizes = [0.1, 0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
 
 agents: list[Agent] = [RandomAgent(bet_sizes), RandomAgent(bet_sizes)]
@@ -25,11 +25,13 @@ games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_
 PBS_games = PBS_NLHE(games, bet_sizes)
 state, reward, done, info = PBS_games.new_hands() 
 
-for i in range(1000000):
+start = time.time()
+for i in range(10):
     # PBS_games.print_table()
     print("played a total of", PBS_games.NLHE_games.played_hands, "hands")
     actions = PBS_games.take_actions(state, agents)
-    state, reward, done, info = PBS_games.step(actions)
+    state, reward, done, _ = PBS_games.step(actions)
+print(time.time() - start)
 
 
 

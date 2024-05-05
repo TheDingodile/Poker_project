@@ -1,15 +1,19 @@
 import torch
 import time
 
+
+a = torch.ones(size=(10000, 10000, 2))
+b = torch.arange(10000)
+c = torch.randint(2, b.shape)
+
+mask = c == 0
+mask2 = c == 1
+
 for _ in range(10):
     start = time.time()
-    k = []
-    a = torch.ze
-    for _ in range(10000):
-        a = torch.zeros(10)
-        # a[:4] = 2
-        # a[5] = 3
-        # a[5:] = 4
-        k.append(a)
-    # a = torch.stack(k)
+    for _ in range(10):
+        d = a[torch.arange(10000), :, c]
+        # d = a[mask, :, 0]
+        # d = a[mask2, :, 1]
+    
     print(time.time() - start)
