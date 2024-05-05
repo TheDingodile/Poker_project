@@ -6,6 +6,7 @@ class Parallelized_NLHE:
     pass
 
     def __init__(self, amount_agents: int, stack_depth_bb: int, tables: int) -> None:
+        self.tables = tables
         self.amount_agents = amount_agents
         self.games = [NLHE(amount_players=amount_agents, stack_depth_bb=stack_depth_bb) for _ in range(tables)]
         self.states = [None for _ in range(tables)]
@@ -14,7 +15,7 @@ class Parallelized_NLHE:
         self.infos =  [None for _ in range(tables)]
         self.played_hands = 0
 
-    def new_hands(self):
+    def new_hands(self) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:
         return [list(result) for result in zip(*(game.new_hand() for game in self.games))]
     
     def step(self, actions: list[str]) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:

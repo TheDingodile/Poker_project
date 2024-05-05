@@ -136,6 +136,7 @@ class NLHE:
             except:
                 print("betted amount not understood, taking call action")
                 print("action space is", self.get_action_space())
+                print("your bet was", action)
                 return self.step(action="c")
                 
         self.had_chance_to_act[self.player_to_act] = True

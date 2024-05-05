@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import math
 
 class RandomAgent(nn.Module):
-    def __init__(self, bet_sizes: list[float] = [0.1, 0.2, 0.5, 1, 2, 5]):
+    def __init__(self, bet_sizes: list[float]):
         super(RandomAgent, self).__init__()
         self.bet_sizes = bet_sizes
 
@@ -23,3 +23,11 @@ class RandomAgent(nn.Module):
         
     def take_action_multiple(self, state: torch.Tensor, info: list[dict[str]]) -> list[str]:
         return [self.take_action(state, info_) for info_ in info]
+
+    def take_action_PBS(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
+        amount_bets = len(self.bet_sizes)
+        non_bet_actions = torch.ones((state.shape[0], infostates, 2))
+        bet_actions = torch.ones((state.shape[0], infostates, amount_bets)) / amount_bets
+        action_not_normalized = torch.cat((non_bet_actions, bet_actions), dim=2)
+        return action_not_normalized / action_not_normalized.sum(dim=2, keepdim=True)
+    

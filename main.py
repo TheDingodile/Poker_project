@@ -10,31 +10,26 @@ import time
 import matplotlib.pyplot as plt
 
 stack_depth_bb: int = 100
-tables = 10000
-agents: list[Agent] = [RandomAgent(), RandomAgent()]
+tables = 5
+bet_sizes = [0.1, 0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
+
+agents: list[Agent] = [RandomAgent(bet_sizes), RandomAgent(bet_sizes)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
-state, reward, done, info = games.new_hands() 
-# print(state, reward, done, info)
-for i in range(1000000):
-    # games.print_table(0)
-    # print(games.get_action_space(0))
-    print("played a total of", games.played_hands, "hands")
-    actions = games.take_actions(state, info, agents)
-    state, reward, done, info = games.step(actions)
 
-
-# PBS_games = PBS_NLHE([NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb) for _ in range(5)])
+# state, reward, done, info = games.new_hands() 
 # for i in range(1000000):
-#     state, reward, done, info = PBS_games.new_hand() 
-#     PBS_games.print_table()
-#     # print("starting game number", i)
-#     while True:
-#         action = agents[PBS_game.player_to_act].take_action_PBS(state, info)
-#         state, reward, done, info = PBS_game.step(action)
-#         PBS_game.print_table()
-#         print(PBS_game.get_action_space())
-#         if done:
-#             break
+#     print("played a total of", games.played_hands, "hands")
+#     actions = games.take_actions(state, info, agents)
+#     state, reward, done, info = games.step(actions)
+
+PBS_games = PBS_NLHE(games, bet_sizes)
+state, reward, done, info = PBS_games.new_hands() 
+
+for i in range(1000000):
+    # PBS_games.print_table()
+    print("played a total of", PBS_games.NLHE_games.played_hands, "hands")
+    actions = PBS_games.take_actions(state, agents)
+    state, reward, done, info = PBS_games.step(actions)
 
 
 
