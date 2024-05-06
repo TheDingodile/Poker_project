@@ -190,7 +190,7 @@ class NLHE:
         # pot_size to stack, round_pot to pot_size, who to act, who is button, community_cards
         player_features = self.amount_players * 2
         table_features = 2
-        community_card_features = (3 + 1 + 1) * 52
+        community_card_features = 52
         state = torch.zeros(size=(player_features + table_features + community_card_features,), dtype=torch.float)
         for i in range(self.amount_players):
             state[i * 2 + 0] = self.pot_size / (self.stacks[i] + self.pot_size)
@@ -199,12 +199,7 @@ class NLHE:
         state[player_features + 1] = self.button_position
         for i, card in enumerate(self.community_cards):
             if card is not None:
-                if i <= 2:
-                    state[player_features + table_features + card.id] = 1.0
-                elif i == 3:
-                    state[player_features + table_features + 52 + card.id] = 1.0
-                elif i == 4:
-                    state[player_features + table_features + 52 + 52 + card.id] = 1.0
+                state[player_features + table_features + card.id] = 1.0
         return state
     
     def get_info(self):
