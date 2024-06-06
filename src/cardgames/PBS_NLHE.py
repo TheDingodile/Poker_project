@@ -9,14 +9,14 @@ class PBS_NLHE:
     def __init__(self, NLHE_games: Parallelized_NLHE, bet_sizes: list[float]) -> None:
         self.bet_sizes = bet_sizes
         self.NLHE_games = NLHE_games
-        self.amount_suits = self.NLHE_games.games[0].deck.amount_suits
-        self.amount_numbers = self.NLHE_games.games[0].deck.amount_values
-        self.amount_players = self.NLHE_games.games[0].amount_players
+        self.amount_suits = self.NLHE_games.tables[0].deck.amount_suits
+        self.amount_numbers = self.NLHE_games.tables[0].deck.amount_values
+        self.amount_players = self.NLHE_games.tables[0].amount_players
         self.amount_cards = self.amount_suits * self.amount_numbers
         self.infostates: int = self.amount_cards * (self.amount_cards - 1) // 2
         self.hand_idx_to_infostate_idx_map = self.create_infostate_map()
         self.infostate_idx_to_hand_idx_map = {v: k for k, v in self.hand_idx_to_infostate_idx_map.items()}
-        self.public_belief_state = torch.ones(size=(self.NLHE_games.tables, self.infostates, self.amount_players)) / self.infostates
+        self.public_belief_state = torch.ones(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players)) / self.infostates
 
     def create_infostate_map(self) -> dict[int, int]:
         hand_to_infostate_map = {}
@@ -47,13 +47,13 @@ class PBS_NLHE:
         state, _, _, info = self.NLHE_games.new_hands()
         state = torch.stack(state)
         combined_state = torch.cat((self.public_belief_state.flatten(-2), state), dim=1)
-        rewards = torch.zeros(size=(self.NLHE_games.tables, self.infostates, self.amount_players))
-        dones = torch.zeros(size=(self.NLHE_games.tables, self.infostates))
+        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players))
+        dones = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates))
         return combined_state, rewards, dones, info
     
     def take_actions(self, states: torch.Tensor, agents: list[Agent]) -> torch.Tensor:
-        idx_of_player_to_act = [game.player_to_act for game in self.NLHE_games.games]
-        actions = [None for _ in range(len(self.NLHE_games.games))]
+        idx_of_player_to_act = [game.player_to_act for game in self.NLHE_games.tables]
+        actions = [None for _ in range(self.NLHE_games.amount_tables)]
         for i in range(self.NLHE_games.amount_agents):
             agent_to_act_games = [game_number for game_number, idx in enumerate(idx_of_player_to_act) if idx == i and not self.NLHE_games.dones[game_number]]
             if len(agent_to_act_games) == 0:
@@ -69,13 +69,13 @@ class PBS_NLHE:
         return torch.stack(actions) # torch.Size([tables, infostates, action_space_size])
     
     def get_reward(self, actions: torch.Tensor, idx_of_player_to_act: list[int]) -> torch.Tensor:
-        rewards = torch.zeros(size=(self.NLHE_games.tables, self.infostates, self.amount_players))
-        table_idxes = torch.arange(self.NLHE_games.tables)
+        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players))
+        table_idxes = torch.arange(self.NLHE_games.amount_tables)
 
-        amount_needed_to_call = torch.tensor([max(NLHE_game.round_pot) - NLHE_game.round_pot[NLHE_game.player_to_act] for NLHE_game in self.NLHE_games.games])
+        amount_needed_to_call = torch.tensor([max(NLHE_game.round_pot) - NLHE_game.round_pot[NLHE_game.player_to_act] for NLHE_game in self.NLHE_games.tables])
         public_belief_state_of_acting_agent = self.public_belief_state[table_idxes, :, idx_of_player_to_act]
  
-        pots_on_tables = torch.tensor([NLHE_game.pot_size for NLHE_game in self.NLHE_games.games])
+        pots_on_tables = torch.tensor([NLHE_game.pot_size for NLHE_game in self.NLHE_games.tables])
         bet_sizes = torch.tensor(self.bet_sizes) * pots_on_tables.unsqueeze(1)
         
         c_fractions = actions[:, :, 0] * public_belief_state_of_acting_agent
@@ -86,13 +86,13 @@ class PBS_NLHE:
     
     def step(self, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[dict[str]]]:
         # action is shape (tables, infostates, action_space_size)
-        idx_of_player_to_act = [game.player_to_act for game in self.NLHE_games.games]
+        idx_of_player_to_act = [game.player_to_act for game in self.NLHE_games.tables]
         indices = torch.arange(len(idx_of_player_to_act))
 
         reward = self.get_reward(actions, idx_of_player_to_act)
 
         infostate_indexes = []
-        for game in self.NLHE_games.games:
+        for game in self.NLHE_games.tables:
             infostate_indexes.append(self.hand_to_infostate_idx(game.hands[game.player_to_act]))
         actions_prob_infostate = actions[indices, infostate_indexes]
         sampled_actions = torch.distributions.Categorical(probs=actions_prob_infostate).sample()
@@ -144,4 +144,4 @@ class PBS_NLHE:
 
         
     def print_table(self, P0_hide=True, P1_hide=True, game_number=0):
-        self.NLHE_games.games[game_number].print_table(P0_hide=P0_hide, P1_hide=P1_hide)
+        self.NLHE_games.tables[game_number].print_table(P0_hide=P0_hide, P1_hide=P1_hide)

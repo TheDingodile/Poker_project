@@ -5,33 +5,33 @@ import torch
 class Parallelized_NLHE:
     pass
 
-    def __init__(self, amount_agents: int, stack_depth_bb: int, tables: int) -> None:
+    def __init__(self, amount_agents: int, stack_depth_bb: int, tables: list[NLHE]) -> None:
         self.tables = tables
+        self.amount_tables = len(tables)
         self.amount_agents = amount_agents
-        self.games = [NLHE(amount_players=amount_agents, stack_depth_bb=stack_depth_bb) for _ in range(tables)]
-        self.states = [None for _ in range(tables)]
-        self.rewards =  [None for _ in range(tables)]
-        self.dones =  [False for _ in range(tables)]
-        self.infos =  [None for _ in range(tables)]
+        self.states = [None for _ in range(self.amount_tables)]
+        self.rewards =  [None for _ in range(self.amount_tables)]
+        self.dones =  [False for _ in range(self.amount_tables)]
+        self.infos =  [None for _ in range(self.amount_tables)]
         self.played_hands = 0
 
     def new_hands(self) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:
-        return [list(result) for result in zip(*(game.new_hand() for game in self.games))]
+        return [list(result) for result in zip(*(game.new_hand() for game in self.tables))]
     
     def step(self, actions: list[str]) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:
         for i, is_done in enumerate(self.dones):
             if is_done:
-                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.games[i].new_hand()
+                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].new_hand()
             else:
-                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.games[i].step(actions[i])
+                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].step(actions[i])
 
         self.played_hands += sum(self.dones)
         return self.states, self.rewards, self.dones, self.infos
     
     def take_actions(self, states: list[torch.Tensor], infos: list[dict[str]], agents: list[Agent]) -> list[str]:
         batch_states = torch.stack(states)
-        idx_of_player_to_act = [game.player_to_act for game in self.games]
-        actions = [None for _ in range(len(self.games))]
+        idx_of_player_to_act = [game.player_to_act for game in self.tables]
+        actions = [None for _ in range(self.amount_tables)]
         for i in range(self.amount_agents):
             agent_to_act_games = [game_number for game_number, idx in enumerate(idx_of_player_to_act) if idx == i and not self.dones[game_number]]
             if len(agent_to_act_games) == 0:
@@ -43,4 +43,4 @@ class Parallelized_NLHE:
         return actions
 
     def print_table(self, table_number: int) -> None:
-        self.games[table_number].print_table()
+        self.tables[table_number].print_table()

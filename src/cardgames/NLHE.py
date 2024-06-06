@@ -5,8 +5,8 @@ from src.utils import argsorted_index_lists
 import math
 
 class NLHE:
-    def __init__(self, amount_players, stack_depth_bb=100, refresh_stack=True, reward_when_end_of_hand=True):
-        self.deck = Deck()
+    def __init__(self, amount_players, stack_depth_bb, amount_values, amount_suits, refresh_stack=True, reward_when_end_of_hand=True):
+        self.deck = Deck(amount_values, amount_suits)
         self.amount_players = amount_players
         self.button_position: int = 0
         self.player_to_act: int = 0

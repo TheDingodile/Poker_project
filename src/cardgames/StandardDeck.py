@@ -1,9 +1,8 @@
 import random
 
-amount_suits = 1
 
 class Card():
-    def __init__(self, suit: int, number: int, amount_suits = amount_suits, amount_values = 13):
+    def __init__(self, suit: int, number: int, amount_values: int, amount_suits: int):
         self.amount_suits = amount_suits
         self.amount_values = amount_values
         self.suit = suit
@@ -30,7 +29,7 @@ class Card():
     
 
 class Deck:
-    def __init__(self, amount_suits = amount_suits, amount_values = 13):
+    def __init__(self, amount_values: int, amount_suits: int):
         self.amount_suits = amount_suits
         self.amount_values = amount_values
         self.reset()
@@ -45,4 +44,4 @@ class Deck:
         self.cards.pop()
 
     def reset(self):
-        self.cards = [Card(suit, number) for suit in range(self.amount_suits) for number in range(2, 2 + self.amount_values)]
+        self.cards = [Card(suit, number, self.amount_values, self.amount_suits) for suit in range(self.amount_suits) for number in range(2, 2 + self.amount_values)]

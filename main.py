@@ -9,11 +9,17 @@ from src.agents.agent import Agent
 import time
 import matplotlib.pyplot as plt
 
+
+amount_values: int = 13
+amount_suits: int = 4
 stack_depth_bb: int = 100
-tables = 3
-bet_sizes = [0.1, 0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
+refresh_stack: bool = True
+reward_when_end_of_hand: bool = True
+tables: int = 1000
+bet_sizes: list[float] = [0.1, 0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
 
 agents: list[Agent] = [RandomAgent(bet_sizes), RandomAgent(bet_sizes)]
+tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
 
 # state, reward, done, info = games.new_hands() 
@@ -28,7 +34,7 @@ state, reward, done, info = PBS_games.new_hands()
 start = time.time()
 for i in range(10):
     # PBS_games.print_table()
-    print("played a total of", PBS_games.NLHE_games.played_hands, "hands")
+    print("played a total of", PBS_games.NLHE_games.played_hands, "hands")  
     actions = PBS_games.take_actions(state, agents)
     state, reward, done, _ = PBS_games.step(actions)
 print(time.time() - start)
