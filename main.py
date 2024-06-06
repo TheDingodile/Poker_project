@@ -10,16 +10,19 @@ import time
 import matplotlib.pyplot as plt
 
 
-amount_values: int = 13
-amount_suits: int = 4
+amount_values: int = 13 # min 1 max 13
+amount_suits: int = 6 # min 1 max 4
+cards_on_hand: int = 1
+amount_community_cards: int = 4
+
 stack_depth_bb: int = 100
 refresh_stack: bool = True
 reward_when_end_of_hand: bool = True
-tables: int = 1000
-bet_sizes: list[float] = [0.1, 0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
+tables: int = 100
+bet_sizes: list[float] = [0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
 
 agents: list[Agent] = [RandomAgent(bet_sizes), RandomAgent(bet_sizes)]
-tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
+tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, cards_on_hand=cards_on_hand, amount_community_cards=amount_community_cards, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
 
 # state, reward, done, info = games.new_hands() 
@@ -27,6 +30,7 @@ games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_
 #     print("played a total of", games.played_hands, "hands")
 #     actions = games.take_actions(state, info, agents)
 #     state, reward, done, info = games.step(actions)
+#     # games.print_table()
 
 PBS_games = PBS_NLHE(games, bet_sizes)
 state, reward, done, info = PBS_games.new_hands() 

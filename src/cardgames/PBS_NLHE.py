@@ -4,6 +4,7 @@ from src.cardgames.StandardDeck import Card, Deck
 import torch
 from src.agents.agent import Agent
 import math
+import time
 
 class PBS_NLHE:
     def __init__(self, NLHE_games: Parallelized_NLHE, bet_sizes: list[float]) -> None:
@@ -13,42 +14,43 @@ class PBS_NLHE:
         self.amount_numbers = self.NLHE_games.tables[0].deck.amount_values
         self.amount_players = self.NLHE_games.tables[0].amount_players
         self.amount_cards = self.amount_suits * self.amount_numbers
-        self.infostates: int = self.amount_cards * (self.amount_cards - 1) // 2
-        self.hand_idx_to_infostate_idx_map = self.create_infostate_map()
-        self.infostate_idx_to_hand_idx_map = {v: k for k, v in self.hand_idx_to_infostate_idx_map.items()}
-        self.public_belief_state = torch.ones(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players)) / self.infostates
+        self.cards_on_hand = self.NLHE_games.tables[0].cards_on_hand
+        self.hand_to_infostate_map = {}
+        self.create_hand_to_infostate_map(self.cards_on_hand, 0, [])
+        self.amount_infostates: int = len(self.hand_to_infostate_map)
+        self.infostate_to_hand_map = {v: k for k, v in self.hand_to_infostate_map.items()}
 
-    def create_infostate_map(self) -> dict[int, int]:
-        hand_to_infostate_map = {}
-        for i in range(self.amount_cards):
-            for j in range(i + 1, self.amount_cards):
-                hand_to_infostate_map[i * self.amount_cards + j] = len(hand_to_infostate_map)
+        self.public_belief_state = torch.ones(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players)) / self.amount_infostates
 
-        for i in range(self.amount_cards):
-            for j in range(i):
-                hand_to_infostate_map[i * self.amount_cards + j] = hand_to_infostate_map[j * self.amount_cards + i]
-
-        return hand_to_infostate_map
-    
-    def get_hand_idx(self, hand: list[Card]) -> int:
-        return hand[0].id * self.amount_cards + hand[1].id
+    def create_hand_to_infostate_map(self, depth_left:int, start:int, hand:list[int]) -> None:
+        if depth_left == 0:
+            self.hand_to_infostate_map[tuple(hand)] = len(self.hand_to_infostate_map)
+            return
+        for i in range(start, self.amount_cards):
+            hand.append(i)
+            self.create_hand_to_infostate_map(depth_left - 1, i + 1, hand)
+            hand.pop()
 
     def hand_to_infostate_idx(self, hand: list[Card]) -> int:
-        return self.hand_idx_to_infostate_idx_map[self.get_hand_idx(hand)]
+        return self.hand_to_infostate_map[tuple(sorted([card.id for card in hand]))]
     
-    def infostate_idx_to_hand(self, idx: int) -> list[Card]:
-        hand_id = self.infostate_idx_to_hand_idx_map[idx]
-        card1_id = hand_id // self.amount_cards
-        card2_id = hand_id % self.amount_cards
-        return [Card(card1_id % self.amount_suits, card1_id // self.amount_suits + 2), Card(card2_id % self.amount_suits, card2_id // self.amount_suits + 2)]
+
+    def infostate_to_hand(self, idx: int) -> list[Card]:
+        hand_as_tuple = self.infostate_to_hand_map[idx]
+        hand = []
+        for card_id in hand_as_tuple:
+            suit = card_id % self.amount_suits
+            number = card_id // self.amount_suits + 2
+            hand.append(Card(suit, number, self.amount_numbers, self.amount_suits))
+        return hand
 
 
     def new_hands(self):
         state, _, _, info = self.NLHE_games.new_hands()
         state = torch.stack(state)
         combined_state = torch.cat((self.public_belief_state.flatten(-2), state), dim=1)
-        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players))
-        dones = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates))
+        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players))
+        dones = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates))
         return combined_state, rewards, dones, info
     
     def take_actions(self, states: torch.Tensor, agents: list[Agent]) -> torch.Tensor:
@@ -59,17 +61,17 @@ class PBS_NLHE:
             if len(agent_to_act_games) == 0:
                 continue
             
-            actions_of_agent = agents[i].take_action_PBS(states[agent_to_act_games], self.infostates)
+            actions_of_agent = agents[i].take_action_PBS(states[agent_to_act_games], self.amount_infostates)
             for j in range(len(agent_to_act_games)):
                 actions[agent_to_act_games[j]] = actions_of_agent[j]
 
         for i, action in enumerate(actions):
             if action is None:
-                actions[i] = torch.ones((self.infostates, len(self.bet_sizes) + 2)) / (len(self.bet_sizes) + 2)
+                actions[i] = torch.ones((self.amount_infostates, len(self.bet_sizes) + 2)) / (len(self.bet_sizes) + 2)
         return torch.stack(actions) # torch.Size([tables, infostates, action_space_size])
     
     def get_reward(self, actions: torch.Tensor, idx_of_player_to_act: list[int]) -> torch.Tensor:
-        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.infostates, self.amount_players))
+        rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players))
         table_idxes = torch.arange(self.NLHE_games.amount_tables)
 
         amount_needed_to_call = torch.tensor([max(NLHE_game.round_pot) - NLHE_game.round_pot[NLHE_game.player_to_act] for NLHE_game in self.NLHE_games.tables])
@@ -100,7 +102,7 @@ class PBS_NLHE:
 
         self.public_belief_state[indices, :, idx_of_player_to_act] *= probabilities_infostates
         self.public_belief_state /= self.public_belief_state.sum(dim=1, keepdim=True)
-        self.public_belief_state[self.NLHE_games.dones] = 1 / self.infostates
+        self.public_belief_state[self.NLHE_games.dones] = 1 / self.amount_infostates
 
         states, _, _, _ = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
 

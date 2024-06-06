@@ -5,28 +5,30 @@ from src.utils import argsorted_index_lists
 import math
 
 class NLHE:
-    def __init__(self, amount_players, stack_depth_bb, amount_values, amount_suits, refresh_stack=True, reward_when_end_of_hand=True):
+    def __init__(self, amount_players: int, stack_depth_bb: int, amount_values: int, amount_suits: int, cards_on_hand: int, amount_community_cards: int, refresh_stack=True, reward_when_end_of_hand=True):
         self.deck = Deck(amount_values, amount_suits)
         self.amount_players = amount_players
+        self.amount_community_cards = amount_community_cards
         self.button_position: int = 0
         self.player_to_act: int = 0
         self.pot_size: float = 0.0
         self.stack_depth_bb = stack_depth_bb
+        self.cards_on_hand = cards_on_hand
         self.stacks = [stack_depth_bb for _ in range(self.amount_players)]
         self.total_betted_amount_in_hand: list[float] = [0.0 for _ in range(self.amount_players)]
-        self.hands: list[list[Card | None]] = [[None, None] for _ in range(self.amount_players)]
+        self.hands: list[list[Card | None]] = [[None] * cards_on_hand for _ in range(self.amount_players)]
         self.players_in_hand = [False for _ in range(self.amount_players)]
         self.round_pot = [0.0 for _ in range(self.amount_players)]
         self.had_chance_to_act = [False for _ in range(self.amount_players)]
         self.refresh_stack = refresh_stack
         self.reward_when_end_of_hand = reward_when_end_of_hand
-        self.community_cards: list[Card] = [None, None, None, None, None]
+        self.community_cards: list[Card] = [None] * self.amount_community_cards
         self.history = []
         self.total_earnings = [0.0 for _ in range(self.amount_players)]
 
 
     def deal_cards(self):
-        for j in range(2):
+        for j in range(self.cards_on_hand):
             for i in range(self.amount_players):
                 card = self.deck.deal_card()
                 self.hands[i][j] = card
@@ -43,8 +45,8 @@ class NLHE:
         self.player_to_act = self.next_player(self.button_position) if self.amount_players > 2 else self.button_position
 
     def collect_cards(self):
-        self.hands = [[None, None] for _ in range(self.amount_players)]
-        self.community_cards = [None, None, None, None, None]
+        self.hands = [[None] * self.cards_on_hand for _ in range(self.amount_players)]
+        self.community_cards = [None] * self.amount_community_cards
         self.deck.reset()
 
     def round_nearest_sb(self, amount):
@@ -167,30 +169,38 @@ class NLHE:
             self.player_to_act = self.next_player(self.button_position)
             self.round_pot = [0.0 for _ in range(self.amount_players)]
             self.had_chance_to_act = [False for _ in range(self.amount_players)]
-            if self.community_cards[2] is None:
-                self.deck.burn_card()
-                self.community_cards[0] = self.deck.deal_card()
-                self.community_cards[1] = self.deck.deal_card()
-                self.community_cards[2] = self.deck.deal_card()
-            elif self.community_cards[3] is None:
-                self.deck.burn_card()
-                self.community_cards[3] = self.deck.deal_card()
-            elif self.community_cards[4] is None:
-                self.deck.burn_card()
-                self.community_cards[4] = self.deck.deal_card()
-            else:
-                assert False, "All community cards are already dealt"
+            self.deal_community_cards()
+
 
         if self.stacks[self.player_to_act] == 0:
             return self.step(action="c")
 
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
+    
+    def deal_community_cards(self):
+        if self.amount_community_cards < 3:
+            self.community_cards = [self.deck.deal_card() for _ in range(self.amount_community_cards)]
+        else:
+            if self.community_cards[0] is None:
+                # self.deck.burn_card()
+                self.community_cards[0] = self.deck.deal_card()
+                self.community_cards[1] = self.deck.deal_card()
+                self.community_cards[2] = self.deck.deal_card()
+            elif self.community_cards[-1] is None:
+                # self.deck.burn_card()
+                for index, element in enumerate(self.community_cards):
+                    if element is None:
+                        self.community_cards[index] = self.deck.deal_card()
+                        break
+            else:
+                assert False, "All community cards are already dealt"
+
         
     def get_state(self):
         # pot_size to stack, round_pot to pot_size, who to act, who is button, community_cards
         player_features = self.amount_players * 2
         table_features = 2
-        community_card_features = 52
+        community_card_features = self.deck.amount_values * self.deck.amount_suits
         state = torch.zeros(size=(player_features + table_features + community_card_features,), dtype=torch.float)
         for i in range(self.amount_players):
             state[i * 2 + 0] = self.pot_size / (self.stacks[i] + self.pot_size)
