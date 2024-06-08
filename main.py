@@ -8,20 +8,25 @@ from src.agents.fold_agent import FoldAgent
 from src.agents.agent import Agent
 import time
 import matplotlib.pyplot as plt
+from src.buffers.replay_buffer import ReplayBuffer
 
 
-amount_values: int = 13 # min 1 max 13
-amount_suits: int = 6 # min 1 max 4
-cards_on_hand: int = 1
+amount_values: int = 4 # min 1 max 13
+amount_suits: int = 2 # min 1 max 4
+cards_on_hand: int = 2
 amount_community_cards: int = 4
 
 stack_depth_bb: int = 100
 refresh_stack: bool = True
+
 reward_when_end_of_hand: bool = True
-tables: int = 100
 bet_sizes: list[float] = [0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
 
-agents: list[Agent] = [RandomAgent(bet_sizes), RandomAgent(bet_sizes)]
+tables: int = 1
+batch_size: int = 4
+
+agents: list[Agent] = [CallAgent(bet_sizes), CallAgent(bet_sizes)]
+replay_buffer: ReplayBuffer = ReplayBuffer(size=100000)
 tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, cards_on_hand=cards_on_hand, amount_community_cards=amount_community_cards, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
 
@@ -36,11 +41,20 @@ PBS_games = PBS_NLHE(games, bet_sizes)
 state, reward, done, info = PBS_games.new_hands() 
 
 start = time.time()
-for i in range(10):
+for i in range(100):
+    time.sleep(1)
+
     # PBS_games.print_table()
     print("played a total of", PBS_games.NLHE_games.played_hands, "hands")  
+    print(PBS_games.public_belief_state)
     actions = PBS_games.take_actions(state, agents)
-    state, reward, done, _ = PBS_games.step(actions)
+    previous_state = state
+    PBS_games.print_table()
+    # print(actions)
+    state, reward, dones, infos = PBS_games.step(actions)
+    print(dones)
+    replay_buffer.add_data((previous_state, actions, reward, state, infos))
+
 print(time.time() - start)
 
 

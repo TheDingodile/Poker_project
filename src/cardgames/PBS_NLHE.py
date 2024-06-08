@@ -19,7 +19,6 @@ class PBS_NLHE:
         self.create_hand_to_infostate_map(self.cards_on_hand, 0, [])
         self.amount_infostates: int = len(self.hand_to_infostate_map)
         self.infostate_to_hand_map = {v: k for k, v in self.hand_to_infostate_map.items()}
-
         self.public_belief_state = torch.ones(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players)) / self.amount_infostates
 
     def create_hand_to_infostate_map(self, depth_left:int, start:int, hand:list[int]) -> None:
@@ -71,6 +70,8 @@ class PBS_NLHE:
         return torch.stack(actions) # torch.Size([tables, infostates, action_space_size])
     
     def get_reward(self, actions: torch.Tensor, idx_of_player_to_act: list[int]) -> torch.Tensor:
+        # fold actions is only implements for heads-up so far
+
         rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players))
         table_idxes = torch.arange(self.NLHE_games.amount_tables)
 
@@ -82,7 +83,16 @@ class PBS_NLHE:
         
         c_fractions = actions[:, :, 0] * public_belief_state_of_acting_agent
         bet_fractions = actions[:, :, 2:] * public_belief_state_of_acting_agent.unsqueeze(2)
+        
         rewards[table_idxes, :, idx_of_player_to_act] -= c_fractions * amount_needed_to_call.unsqueeze(1) + torch.sum(bet_fractions * bet_sizes.unsqueeze(1), dim=2)
+
+        # this part is specific to heads-up
+        f_fractions = actions[:, :, 1] * public_belief_state_of_acting_agent
+        rewards[table_idxes, :, [1 - x for x in idx_of_player_to_act]] += f_fractions * pots_on_tables.unsqueeze(1)
+
+        # make list of all tables where we are in show
+        show_idxes = [table.is_showdown() for table in self.NLHE_games.tables]
+
 
         return rewards
     
@@ -97,21 +107,21 @@ class PBS_NLHE:
         for game in self.NLHE_games.tables:
             infostate_indexes.append(self.hand_to_infostate_idx(game.hands[game.player_to_act]))
         actions_prob_infostate = actions[indices, infostate_indexes]
+
         sampled_actions = torch.distributions.Categorical(probs=actions_prob_infostate).sample()
         probabilities_infostates = actions[indices, :, sampled_actions]
 
+        states, _, _, _ = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
         self.public_belief_state[indices, :, idx_of_player_to_act] *= probabilities_infostates
         self.public_belief_state /= self.public_belief_state.sum(dim=1, keepdim=True)
         self.public_belief_state[self.NLHE_games.dones] = 1 / self.amount_infostates
 
-        states, _, _, _ = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
 
         states = torch.stack(states)
         combined_state = torch.cat((self.public_belief_state.flatten(-2), states), dim=1)
 
 
-
-        return combined_state, reward, None, None
+        return combined_state, reward, self.NLHE_games.dones, self.NLHE_games.infos
 
 
     def action_to_list_of_string(self, actions: torch.Tensor) -> list[str]:
