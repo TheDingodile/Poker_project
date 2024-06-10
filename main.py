@@ -13,8 +13,8 @@ from src.buffers.replay_buffer import ReplayBuffer
 
 amount_values: int = 4 # min 1 max 13
 amount_suits: int = 2 # min 1 max 4
-cards_on_hand: int = 2
-amount_community_cards: int = 4
+cards_on_hand: int = 1
+amount_community_cards: int = 5
 
 stack_depth_bb: int = 100
 refresh_stack: bool = True
@@ -23,7 +23,7 @@ reward_when_end_of_hand: bool = True
 bet_sizes: list[float] = [0.2, 0.5, 1, 2] # bet sizes as a fraction of the pot
 
 tables: int = 1
-batch_size: int = 4
+batch_size: int = 1
 
 agents: list[Agent] = [CallAgent(bet_sizes), CallAgent(bet_sizes)]
 replay_buffer: ReplayBuffer = ReplayBuffer(size=100000)
@@ -41,19 +41,18 @@ PBS_games = PBS_NLHE(games, bet_sizes)
 state, reward, done, info = PBS_games.new_hands() 
 
 start = time.time()
-for i in range(100):
-    time.sleep(1)
+for i in range(10):
+    # time.sleep(1)
 
-    # PBS_games.print_table()
+    PBS_games.print_table(P0_hide=False, P1_hide=False)
     print("played a total of", PBS_games.NLHE_games.played_hands, "hands")  
-    print(PBS_games.public_belief_state)
     actions = PBS_games.take_actions(state, agents)
     previous_state = state
-    PBS_games.print_table()
     # print(actions)
     state, reward, dones, infos = PBS_games.step(actions)
-    print(dones)
+    print(reward, dones)
     replay_buffer.add_data((previous_state, actions, reward, state, infos))
+    # quit()
 
 print(time.time() - start)
 

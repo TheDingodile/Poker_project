@@ -25,6 +25,7 @@ class NLHE:
         self.community_cards: list[Card] = [None] * self.amount_community_cards
         self.history = []
         self.total_earnings = [0.0 for _ in range(self.amount_players)]
+        self.cards_of_this_round_community_cards: None | list[Card] = None
 
 
     def deal_cards(self):
@@ -143,7 +144,8 @@ class NLHE:
                     print("action space is", self.get_action_space())
                     print("your bet was", action)
                 return self.step(action="c")
-                
+            
+        self.cards_of_this_round_community_cards = None # reset this variable
         self.had_chance_to_act[self.player_to_act] = True
         if action == "f":
             self.players_in_hand[self.player_to_act] = False
@@ -178,22 +180,23 @@ class NLHE:
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
     
     def deal_community_cards(self):
+
         if self.amount_community_cards < 3:
-            self.community_cards = [self.deck.deal_card() for _ in range(self.amount_community_cards)]
+            cards = [self.deck.deal_card() for _ in range(self.amount_community_cards)]
+            self.community_cards = cards
         else:
             if self.community_cards[0] is None:
-                # self.deck.burn_card()
-                self.community_cards[0] = self.deck.deal_card()
-                self.community_cards[1] = self.deck.deal_card()
-                self.community_cards[2] = self.deck.deal_card()
+                cards = [self.deck.deal_card() for _ in range(3)]
+                self.community_cards[:3] = cards
             elif self.community_cards[-1] is None:
-                # self.deck.burn_card()
                 for index, element in enumerate(self.community_cards):
                     if element is None:
-                        self.community_cards[index] = self.deck.deal_card()
+                        cards = [self.deck.deal_card()]
+                        self.community_cards[index: index + 1] = cards
                         break
             else:
                 assert False, "All community cards are already dealt"
+        self.cards_of_this_round_community_cards = cards
 
         
     def get_state(self):
