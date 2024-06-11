@@ -20,10 +20,9 @@ class Parallelized_NLHE:
     
     def step(self, actions: list[str]) -> tuple[list[torch.Tensor], list[list[float]], list[bool], list[dict[str]]]:
         for i, is_done in enumerate(self.dones):
-            if is_done:
-                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].new_hand()
-            else:
-                self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].step(actions[i])
+            self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].step(actions[i])
+            if self.dones[i]:
+                self.tables[i].new_hand()
 
         self.played_hands += sum(self.dones)
         return self.states, self.rewards, self.dones, self.infos
@@ -33,7 +32,7 @@ class Parallelized_NLHE:
         idx_of_player_to_act = [game.player_to_act for game in self.tables]
         actions = [None for _ in range(self.amount_tables)]
         for i in range(self.amount_agents):
-            agent_to_act_games = [game_number for game_number, idx in enumerate(idx_of_player_to_act) if idx == i and not self.dones[game_number]]
+            agent_to_act_games = [game_number for game_number, idx in enumerate(idx_of_player_to_act) if idx == i]
             if len(agent_to_act_games) == 0:
                 continue
             

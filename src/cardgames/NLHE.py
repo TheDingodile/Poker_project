@@ -164,7 +164,7 @@ class NLHE:
         if all_folded or (is_river and go_to_next_round):
             reward = self.get_reward(is_showdown=not all_folded)
             self.total_earnings = [sum(x) for x in zip(self.total_earnings, reward)]
-            return self.get_state(), reward, True, {}
+            return self.get_state(), reward, True, self.get_info()
 
         if go_to_next_round:
             # make self.player_to_act first person after button that is still in hand
@@ -228,7 +228,10 @@ class NLHE:
             "button_position": self.button_position,
             "hands": self.hands,
             "action_space": self.get_action_space(),
+            "is_showdown": self.is_showdown(),
         }
+    
+
     
     def get_action_space(self):
         action_space = ["c"]
