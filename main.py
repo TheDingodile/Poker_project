@@ -6,6 +6,8 @@ from src.agents.keyboard_agent import KeyboardAgent
 from src.agents.call_agent import CallAgent
 from src.agents.fold_agent import FoldAgent
 from src.agents.raise_agent import RaiseAgent
+from src.agents.random_nofold_agent import RandomNoFoldAgent
+from src.agents.random_noraise_agent import RandomNoRaiseAgent
 from src.agents.agent import Agent
 import time
 import matplotlib.pyplot as plt
@@ -13,21 +15,21 @@ from src.buffers.replay_buffer import ReplayBuffer
 import torch
 
 
-amount_values: int = 4 # min 1 max 13
-amount_suits: int = 2 # min 1 max 4
+amount_values: int = 2 # min 1 max 13
+amount_suits: int = 4 # min 1 max 4
 cards_on_hand: int = 1
-amount_community_cards: int = 5
+amount_community_cards: int = 6
 
 stack_depth_bb: int = 100
 refresh_stack: bool = True
 
 reward_when_end_of_hand: bool = True
-bet_sizes: list[float] = [1, 2] # bet sizes as a fraction of the pot
+bet_sizes: list[float] = [100] # bet sizes as a fraction of the pot
 
 tables: int = 1000
 batch_size: int = 1
 
-agents: list[Agent] = [RaiseAgent(bet_sizes), CallAgent(bet_sizes)]
+agents: list[Agent] = [RandomNoFoldAgent(bet_sizes), RandomNoFoldAgent(bet_sizes)]
 replay_buffer: ReplayBuffer = ReplayBuffer(size=100000)
 tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, cards_on_hand=cards_on_hand, amount_community_cards=amount_community_cards, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
@@ -54,12 +56,12 @@ for i in range(1000):
     actions = PBS_games.take_actions(state, agents)
     previous_state = state
     state, reward, dones, infos = PBS_games.step(actions)
-    # print(reward[0], dones[0])
+    print(reward[0], dones[0])
     replay_buffer.add_data((previous_state, actions, reward, state, infos))
     total_reward = [total_reward[0] + torch.sum(reward[:, :, 0]), total_reward[1] + torch.sum(reward[:, :, 1])]
     blinds_fee = sum(dones) * 0.75
     total_reward = [total_reward[0] - blinds_fee, total_reward[1] - blinds_fee]
-    print(total_reward)
+    print(total_reward, torch.sum(torch.tensor(total_reward)))
     # quit()
 
 print(time.time() - start)

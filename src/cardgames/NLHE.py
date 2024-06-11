@@ -25,7 +25,7 @@ class NLHE:
         self.community_cards: list[Card] = [None] * self.amount_community_cards
         self.history = []
         self.total_earnings = [0.0 for _ in range(self.amount_players)]
-        self.cards_of_this_round_community_cards: None | list[Card] = None
+        self.cards_of_this_round_community_cards: list[Card] = []
 
 
     def deal_cards(self):
@@ -108,7 +108,7 @@ class NLHE:
                 pass
 
     def is_showdown(self):
-        return self.is_river() and self.is_next_round()
+        return self.is_river() and self.is_next_round() and not self.one_player_left()
 
     def one_player_left(self):
         return sum(self.players_in_hand) == 1
@@ -123,7 +123,7 @@ class NLHE:
             return True
         return False 
 
-    def step(self, action: str, print_action_legality=False):
+    def step(self, action: str, print_action_legality=False, keep_community_cards=False):
         # check action legality
         if action not in ["f", "c"] and (len(action) == 0 or action[0] != "b"):
             if print_action_legality:
@@ -144,8 +144,8 @@ class NLHE:
                     print("action space is", self.get_action_space())
                     print("your bet was", action)
                 return self.step(action="c")
-            
-        self.cards_of_this_round_community_cards = None # reset this variable
+        if not keep_community_cards:
+            self.cards_of_this_round_community_cards = [] # reset this variable
         self.had_chance_to_act[self.player_to_act] = True
         if action == "f":
             self.players_in_hand[self.player_to_act] = False
@@ -175,7 +175,7 @@ class NLHE:
 
 
         if self.stacks[self.player_to_act] == 0:
-            return self.step(action="c")
+            return self.step(action="c", keep_community_cards=True)
 
         return self.get_state(), self.get_reward(is_showdown=False), False, self.get_info()
     
@@ -196,7 +196,7 @@ class NLHE:
                         break
             else:
                 assert False, "All community cards are already dealt"
-        self.cards_of_this_round_community_cards = cards
+        self.cards_of_this_round_community_cards.extend(cards)
 
         
     def get_state(self):

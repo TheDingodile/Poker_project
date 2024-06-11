@@ -118,19 +118,18 @@ class PBS_NLHE:
         pots_on_tables = torch.tensor([NLHE_game.pot_size for NLHE_game in self.NLHE_games.tables])
         bet_sizes = (torch.tensor(self.bet_sizes) * pots_on_tables.unsqueeze(1))
         stack_of_acting_player = torch.tensor([NLHE_game.stacks[NLHE_game.player_to_act] for NLHE_game in self.NLHE_games.tables])
-        print(stack_of_acting_player.shape)
-        print(bet_sizes.shape)
-        bet_sizes[bet_sizes > stack_of_acting_player.unsqueeze(1)] = stack_of_acting_player
+        min_bets = torch.tensor([NLHE_game.get_min_bet() for NLHE_game in self.NLHE_games.tables])
+        bet_sizes = torch.max(bet_sizes, min_bets.unsqueeze(1))
+        bet_sizes = torch.min(bet_sizes, stack_of_acting_player.unsqueeze(1))
+        # print(bet_sizes)
 
-        # need to do something here to only bet all_in_maximally if the stack is smaller than the pot
-        # bet_sizes[bet_sizes > self.NLHE_games.tables[0].stack_depth_bb] = self.NLHE_games.tables[0].stack_depth_bb
         
         c_fractions = actions[:, :, 0] * public_belief_state_of_acting_agent
         bet_fractions = actions[:, :, 2:] * public_belief_state_of_acting_agent.unsqueeze(2)
         
         rewards[table_idxes, :, idx_of_player_to_act] -= c_fractions * amount_needed_to_call.unsqueeze(1) + torch.sum(bet_fractions * bet_sizes.unsqueeze(1), dim=2)
 
-        # this part is specific to heads-up
+        # this part is currently specific to heads-up
         f_fractions = actions[:, :, 1] * public_belief_state_of_acting_agent
         rewards[table_idxes, :, [1 - x for x in idx_of_player_to_act]] += f_fractions * pots_on_tables.unsqueeze(1)
         return rewards
@@ -159,6 +158,12 @@ class PBS_NLHE:
                     ranking[i, j] = evaluate_cards(*[card.to_string() for card in infos[table_idx]['community_cards']], *hand)
                 except:
                     print("public belief state", self.public_belief_state[table_idx])
+                    # print indexes where self.public_belief_state[table_idx] is 0
+                    idxs = torch.where(self.public_belief_state[table_idx, :, 0] == 0)
+                    # convert each of the indexes to a hand and print it
+                    print(idxs[0].shape) #['4d', '2h', '4h', '4c', '4s']
+                    for idx in idxs[0]:
+                        print(self.infostate_to_hand(idx.item()))
                     raise ValueError(f"Error in evaluate_cards with community cards {[card.to_string() for card in infos[table_idx]['community_cards']]} and hand {hand}")
         # add small random noise to make sure that the ranking is unique
         ranking += torch.rand_like(ranking)
@@ -190,6 +195,7 @@ class PBS_NLHE:
         indices = torch.arange(len(idx_of_player_to_act))
 
         reward = self.get_reward_non_showdown(actions, idx_of_player_to_act)
+        # print(reward, "yo")
 
 
         # print(self.public_belief_state)
@@ -199,13 +205,16 @@ class PBS_NLHE:
         actions_prob_infostate = actions[indices, infostate_indexes]
 
         sampled_actions = torch.distributions.Categorical(probs=actions_prob_infostate).sample()
+
         probabilities_infostates = actions[indices, :, sampled_actions]
+        # print(self.action_to_list_of_string(sampled_actions)[0])
         states, _, _, infos = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
         self.total_reward = [self.total_reward[0] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]), self.total_reward[1] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 1])]
         print(self.total_reward, "real reward")
         # this part removes community cards from the public belief state
         for i, game in enumerate(self.NLHE_games.tables):
-            if game.cards_of_this_round_community_cards is None:
+            # print(game.cards_of_this_round_community_cards)
+            if len(game.cards_of_this_round_community_cards) == 0:
                 continue
             for card in game.cards_of_this_round_community_cards:
                 self.public_belief_state[i, self.card_to_impossible_infostate[card.id]] = 0
@@ -231,8 +240,18 @@ class PBS_NLHE:
             elif actions[i] == 1:
                 actions_str[i] = "f"
             else:
-                actions_str[i] = f"b{self.bet_sizes[actions[i] - 2] * self.NLHE_games.tables[i].pot_size:.1f}"
+                betted_value = self.bet_sizes[actions[i] - 2] * self.NLHE_games.tables[i].pot_size
+                betted_value = min(betted_value, self.NLHE_games.tables[i].stacks[self.NLHE_games.tables[i].player_to_act])
+                betted_value = max(betted_value, self.NLHE_games.tables[i].get_min_bet())
+                actions_str[i] = f"b{betted_value:.1f}"
         return actions_str
+    
+    def get_legal_actions(self):
+        actions = []
+        for table in self.NLHE_games.tables:
+            actions.append(table.get_action_space())
+        return actions
+
 
 
 
