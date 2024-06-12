@@ -15,16 +15,16 @@ from src.buffers.replay_buffer import ReplayBuffer
 import torch
 
 
-amount_values: int = 2 # min 1 max 13
+amount_values: int = 3 # min 1 max 13
 amount_suits: int = 4 # min 1 max 4
 cards_on_hand: int = 1
-amount_community_cards: int = 6
+amount_community_cards: int = 5
 
 stack_depth_bb: int = 100
 refresh_stack: bool = True
 
 reward_when_end_of_hand: bool = True
-bet_sizes: list[float] = [100] # bet sizes as a fraction of the pot
+bet_sizes: list[float] = [1] # bet sizes as a fraction of the pot
 
 tables: int = 1000
 batch_size: int = 1
@@ -49,20 +49,15 @@ state, reward, done, info = PBS_games.new_hands()
 start = time.time()
 total_reward = [0, 0]
 for i in range(1000):
-    # time.sleep(1)
-
     PBS_games.print_table(P0_hide=False, P1_hide=False)
     print("played a total of", PBS_games.NLHE_games.played_hands, "hands")  
     actions = PBS_games.take_actions(state, agents)
     previous_state = state
     state, reward, dones, infos = PBS_games.step(actions)
-    print(reward[0], dones[0])
-    replay_buffer.add_data((previous_state, actions, reward, state, infos))
-    total_reward = [total_reward[0] + torch.sum(reward[:, :, 0]), total_reward[1] + torch.sum(reward[:, :, 1])]
-    blinds_fee = sum(dones) * 0.75
-    total_reward = [total_reward[0] - blinds_fee, total_reward[1] - blinds_fee]
-    print(total_reward, torch.sum(torch.tensor(total_reward)))
-    # quit()
+    replay_buffer.add_data((previous_state, actions, state, reward, dones))
+
+    replay_buffer_sample = replay_buffer.sample(batch_size)
+    print(replay_buffer_sample)
 
 print(time.time() - start)
 

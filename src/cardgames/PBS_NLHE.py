@@ -157,13 +157,12 @@ class PBS_NLHE:
                 try:
                     ranking[i, j] = evaluate_cards(*[card.to_string() for card in infos[table_idx]['community_cards']], *hand)
                 except:
-                    print("public belief state", self.public_belief_state[table_idx])
+                    # print("public belief state", self.public_belief_state[table_idx])
                     # print indexes where self.public_belief_state[table_idx] is 0
-                    idxs = torch.where(self.public_belief_state[table_idx, :, 0] == 0)
+                    # idxs = torch.where(self.public_belief_state[table_idx, :, 0] == 0)
                     # convert each of the indexes to a hand and print it
-                    print(idxs[0].shape) #['4d', '2h', '4h', '4c', '4s']
-                    for idx in idxs[0]:
-                        print(self.infostate_to_hand(idx.item()))
+                    # for idx in idxs[0]:
+                    #     print(self.infostate_to_hand(idx.item()))
                     raise ValueError(f"Error in evaluate_cards with community cards {[card.to_string() for card in infos[table_idx]['community_cards']]} and hand {hand}")
         # add small random noise to make sure that the ranking is unique
         ranking += torch.rand_like(ranking)
@@ -210,7 +209,7 @@ class PBS_NLHE:
         # print(self.action_to_list_of_string(sampled_actions)[0])
         states, _, _, infos = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
         self.total_reward = [self.total_reward[0] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]), self.total_reward[1] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 1])]
-        print(self.total_reward, "real reward")
+        # print(self.total_reward, "real reward")
         # this part removes community cards from the public belief state
         for i, game in enumerate(self.NLHE_games.tables):
             # print(game.cards_of_this_round_community_cards)
@@ -228,8 +227,7 @@ class PBS_NLHE:
         states = torch.stack(states)
         combined_state = torch.cat((self.public_belief_state.flatten(-2), states), dim=1)
 
-
-        return combined_state, reward, self.NLHE_games.dones, self.NLHE_games.infos
+        return combined_state, reward, torch.tensor(self.NLHE_games.dones), self.NLHE_games.infos
 
 
     def action_to_list_of_string(self, actions: torch.Tensor) -> list[str]:
