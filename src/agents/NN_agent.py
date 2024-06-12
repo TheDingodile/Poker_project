@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from torch import Tensor
+from copy import deepcopy
 
 class View(nn.Module):
     def __init__(self, *shape):
@@ -14,40 +15,90 @@ class View(nn.Module):
         return x.view(x.size(0), *self.shape)
 
 class NNAgent(nn.Module):
-    def __init__(self, bet_sizes: list[float], action_space_shape: list[int] = None):
+    def __init__(self, bet_sizes: list[float], lr: float, update_target_every: int):
         super(NNAgent, self).__init__()
         self.bet_sizes = bet_sizes
-        self.back_bone = None
+        self.q_net = None
+        self.lr = lr
+        self.update_target_every = update_target_every
+
+    def initialize_parameters(self, infostates: int):
+        if self.q_net is None:
+            self.create_network(infostates)
+            self.make_clone_of_network_parameters()
 
 
     def take_action_PBS(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
-        if self.network is None:
-            self.backbone, self.value_head, self.policy_head = self.create_network(infostates)
-        
-        actions = self.network(state)
+        self.initialize_parameters(infostates)
+        actions = self.policy_net(state).detach()
+        return actions
+    
+    def output_policy(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
+        self.initialize_parameters(infostates)
+        actions = self.policy_net(state)
+        return actions
+    
+    def output_value(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
+        self.initialize_parameters(infostates)
+        actions = self.q_net(state)
         return actions
 
 
     def create_network(self, infostates: int) -> nn.Module:
         action_space = (infostates, len(self.bet_sizes) + 2)
         neurons = 64
-        back_bone = nn.Sequential(
-            nn.LazyLinear(neurons),
+
+        self.policy_net = nn.Sequential(nn.LazyLinear(neurons),
             nn.ReLU(),
-            nn.Linear(neurons),
+            nn.Linear(neurons, neurons),
             nn.ReLU(),
-        )
-        policy_head = nn.Sequential(
-            nn.LazyLinear(neurons),
-            nn.ReLU(),
+            nn.Linear(neurons, action_space[0] * action_space[1]),
             View(*action_space), 
             nn.Softmax(dim=-1)
         )
 
-        value_head = nn.Sequential(
-            nn.LazyLinear(neurons),
+        self.optimizer_policy_net = torch.optim.Adam(self.policy_net.parameters(), lr=self.lr)
+
+        self.q_net = nn.Sequential(nn.LazyLinear(neurons),
             nn.ReLU(),
-            nn.LazyLinear(infostates),
+            nn.Linear(neurons, neurons),
+            nn.ReLU(),
+            nn.Linear(neurons, infostates),
         )
 
-        return back_bone, value_head, policy_head
+        self.optimizer_q_net = torch.optim.Adam(self.q_net.parameters(), lr=self.lr)
+
+    def make_clone_of_network_parameters(self):
+        self.q_net_clone = deepcopy(self.q_net)
+        self.policy_net_clone = deepcopy(self.policy_net)
+    
+
+    def train_DDPG(self, data: tuple[Tensor], trains_done: int):
+        if (trains_done + 1) % self.update_target_every == 0:
+            self.make_clone_of_network_parameters()
+        previous_state, actions, state, reward, dones = data
+        # player_to_act = previous_state[:, 0]
+
+        q_value = self.output_value(torch.cat((previous_state, actions.flatten(1)), 1), len(actions[0]))
+        new_action = self.policy_net_clone(state)
+        q_value_next = self.q_net_clone(torch.cat((state, new_action.flatten(1)), 1))
+
+        # this will be changed
+        # player_to_act_expanded = player_to_act.unsqueeze(1).unsqueeze(2).expand(-1, reward.shape[1], -1).to(torch.int64)
+        # target = reward.gather(2, player_to_act_expanded).squeeze(2) + q_value_next * (~dones.unsqueeze(1))
+
+        target = (reward[:,:,0] + q_value_next * (~dones.unsqueeze(1))).detach()
+
+        loss = F.mse_loss(q_value, target)
+        loss.backward()
+        self.optimizer_q_net.step()
+        self.optimizer_q_net.zero_grad()
+
+
+        old_action = self.output_policy(previous_state, len(actions[0]))
+        q_values = self.q_net(torch.cat((previous_state, old_action.flatten(1)), 1))
+        loss_policy = -torch.mean(q_values)
+        loss_policy.backward()
+        self.optimizer_policy_net.step()
+        self.optimizer_policy_net.zero_grad()
+

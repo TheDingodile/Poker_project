@@ -9,7 +9,7 @@ class ReplayBuffer():
         self.index = 0
         self.current_size = 0
 
-    def add_data(self, data: tuple[Tensor]) -> None:
+    def add_data(self, data: tuple[Tensor], info: list[dict]) -> None:
         for i in range(len(data[0])):
             self.buffer[self.index] = tuple([data[j][i].detach() for j in range(len(data))])
             self.index = (self.index + 1) % self.size

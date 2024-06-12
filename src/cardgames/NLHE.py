@@ -205,12 +205,12 @@ class NLHE:
         table_features = 3
         community_card_features = self.deck.amount_values * self.deck.amount_suits
         state = torch.zeros(size=(player_features + table_features + community_card_features,), dtype=torch.float)
+        state[0] = self.player_to_act
+        state[1] = self.button_position
+        state[2] = self.pot_size
         for i in range(self.amount_players):
-            state[i * 2 + 0] = self.pot_size / (self.stacks[i] + self.pot_size)
-            state[i * 2 + 1] = self.round_pot[i] / self.pot_size
-        state[player_features] = self.player_to_act
-        state[player_features + 1] = self.button_position
-        state[player_features + 2] = self.pot_size
+            state[i * 2 + table_features] = self.pot_size / (self.stacks[i] + self.pot_size)
+            state[i * 2 + table_features + 1] = self.round_pot[i] / self.pot_size
         for i, card in enumerate(self.community_cards):
             if card is not None:
                 state[player_features + table_features + card.id] = 1.0

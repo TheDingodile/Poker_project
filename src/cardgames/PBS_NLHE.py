@@ -27,6 +27,7 @@ class PBS_NLHE:
         self.infostate_matrix = self.create_infostate_to_impossible_infostate_matrix()
         self.all_hands = self.make_all_hands_list()
         self.total_reward = [0, 0]
+        self.reward_list = []
 
     def make_all_hands_list(self) -> list[str]:
         all_hands = []
@@ -86,7 +87,7 @@ class PBS_NLHE:
     def new_hands(self):
         state, _, _, info = self.NLHE_games.new_hands()
         state = torch.stack(state)
-        combined_state = torch.cat((self.public_belief_state.flatten(-2), state), dim=1)
+        combined_state = torch.cat((state, self.public_belief_state.flatten(-2)), dim=1)
         rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players))
         dones = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates))
         return combined_state, rewards, dones, info
@@ -209,7 +210,7 @@ class PBS_NLHE:
         # print(self.action_to_list_of_string(sampled_actions)[0])
         states, _, _, infos = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
         self.total_reward = [self.total_reward[0] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]), self.total_reward[1] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 1])]
-        # print(self.total_reward, "real reward")
+        self.reward_list.append(torch.mean(torch.tensor(self.NLHE_games.rewards)[:, 0]))
         # this part removes community cards from the public belief state
         for i, game in enumerate(self.NLHE_games.tables):
             # print(game.cards_of_this_round_community_cards)
@@ -225,7 +226,7 @@ class PBS_NLHE:
         self.public_belief_state[self.NLHE_games.dones] = 1 / self.amount_infostates
 
         states = torch.stack(states)
-        combined_state = torch.cat((self.public_belief_state.flatten(-2), states), dim=1)
+        combined_state = torch.cat((states, self.public_belief_state.flatten(-2)), dim=1)
 
         return combined_state, reward, torch.tensor(self.NLHE_games.dones), self.NLHE_games.infos
 
