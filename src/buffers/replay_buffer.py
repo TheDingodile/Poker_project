@@ -11,7 +11,7 @@ class ReplayBuffer():
 
     def add_data(self, data: tuple[Tensor]) -> None:
         for i in range(len(data[0])):
-            self.buffer[self.index] = tuple([data[j][i] for j in range(len(data))])
+            self.buffer[self.index] = tuple([data[j][i].detach() for j in range(len(data))])
             self.index = (self.index + 1) % self.size
             self.current_size = min(self.current_size + 1, self.size)
 

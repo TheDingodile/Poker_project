@@ -1,0 +1,5 @@
+This project is about finding new ways to create AI for imperfect information games.
+
+The main contribution is a flexible Public Belief State (PBS) representation of the game, which can run many games in parallel.
+
+The reward function is also flexible, and a contributation is the reward-per-infostate

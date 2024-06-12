@@ -8,6 +8,7 @@ from src.agents.fold_agent import FoldAgent
 from src.agents.raise_agent import RaiseAgent
 from src.agents.random_nofold_agent import RandomNoFoldAgent
 from src.agents.random_noraise_agent import RandomNoRaiseAgent
+from src.agents.NN_agent import NNAgent
 from src.agents.agent import Agent
 import time
 import matplotlib.pyplot as plt
@@ -29,7 +30,7 @@ bet_sizes: list[float] = [1] # bet sizes as a fraction of the pot
 tables: int = 1000
 batch_size: int = 1
 
-agents: list[Agent] = [RandomNoFoldAgent(bet_sizes), RandomNoFoldAgent(bet_sizes)]
+agents: list[Agent] = [NNAgent(bet_sizes), RandomNoFoldAgent(bet_sizes)]
 replay_buffer: ReplayBuffer = ReplayBuffer(size=100000)
 tables = [NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb, amount_values=amount_values, amount_suits=amount_suits, cards_on_hand=cards_on_hand, amount_community_cards=amount_community_cards, refresh_stack=refresh_stack, reward_when_end_of_hand=reward_when_end_of_hand) for _ in range(tables)]
 games = Parallelized_NLHE(amount_agents=len(agents), stack_depth_bb=stack_depth_bb, tables=tables)
@@ -81,22 +82,3 @@ print(time.time() - start)
 
 
 
-
-
-
-
-
-# game = NLHE(amount_players=len(agents), stack_depth_bb=stack_depth_bb)  
-# for i in range(1000000):
-#     state, reward, done, info = game.new_hand() 
-#     # game.print_table()
-#     # print(game.get_action_space())
-#     if i % 10000 == 0:
-#         print("starting hand number", i)
-#     while True:
-#         action = agents[game.player_to_act].take_action(state, info)
-#         state, reward, done, info = game.step(action)
-#         # game.print_table()
-#         # print(game.get_action_space())
-#         if done:
-#             break
