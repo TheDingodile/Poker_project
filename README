@@ -4,6 +4,8 @@ The main contribution is a flexible Public Belief State (PBS) representation of 
 
 The reward function is also flexible, and a contributation is the reward-per-infostate reward function which tracks the reward given for all infostates and returns them individually.
 
+Use main.py to chose hyper-parameters and run your setup.
+
 The project is still being developped and elements that will be added are:
 
 - A self-play algorithm such that we can train agents to approximate Nash equilibria.
