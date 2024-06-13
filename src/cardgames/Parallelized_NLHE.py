@@ -22,8 +22,10 @@ class Parallelized_NLHE:
         for i, is_done in enumerate(self.dones):
             self.states[i], self.rewards[i], self.dones[i], self.infos[i] = self.tables[i].step(actions[i])
             if self.dones[i]:
-                self.tables[i].new_hand()
+                self.states[i], _, _, info_new_hand = self.tables[i].new_hand()
+                self.infos[i]["player_to_act"] = info_new_hand["player_to_act"]
 
+    
         self.played_hands += sum(self.dones)
         return self.states, self.rewards, self.dones, self.infos
     

@@ -2,4 +2,14 @@ This project is about finding new ways to create AI for imperfect information ga
 
 The main contribution is a flexible Public Belief State (PBS) representation of the game, which can run many games in parallel.
 
-The reward function is also flexible, and a contributation is the reward-per-infostate
+The reward function is also flexible, and a contributation is the reward-per-infostate reward function which tracks the reward given for all infostates and returns them individually.
+
+The project is still being developped and elements that will be added are:
+
+- A self-play algorithm such that we can train agents to approximate Nash equilibria.
+
+- New ways to represent the state and Public Belief State for more effective training.
+
+- The game is not completely compatible with more than 2 players currently, limiting it to heads-up games.
+
+- Note: There are currently some issues with the reward-per-infostate function, which will be fixed in the future.

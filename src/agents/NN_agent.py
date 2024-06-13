@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import math
 from torch import Tensor
 from copy import deepcopy
+import time
 
 class View(nn.Module):
     def __init__(self, *shape):
@@ -31,6 +32,9 @@ class NNAgent(nn.Module):
     def take_action_PBS(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
         self.initialize_parameters(infostates)
         actions = self.policy_net(state).detach()
+        # add noise as exploration
+        actions = actions + torch.randn_like(actions) * 0.1
+        actions = torch.softmax(5 * actions, dim=-1)
         return actions
     
     def output_policy(self, state: torch.Tensor, infostates: int) -> torch.Tensor:
@@ -78,16 +82,15 @@ class NNAgent(nn.Module):
             self.make_clone_of_network_parameters()
         previous_state, actions, state, reward, dones = data
         # player_to_act = previous_state[:, 0]
-
         q_value = self.output_value(torch.cat((previous_state, actions.flatten(1)), 1), len(actions[0]))
+        # print(actions[0])
+        # print(reward[0])
+        # print(q_value[0])
+        # time.sleep(1)
         new_action = self.policy_net_clone(state)
         q_value_next = self.q_net_clone(torch.cat((state, new_action.flatten(1)), 1))
 
-        # this will be changed
-        # player_to_act_expanded = player_to_act.unsqueeze(1).unsqueeze(2).expand(-1, reward.shape[1], -1).to(torch.int64)
-        # target = reward.gather(2, player_to_act_expanded).squeeze(2) + q_value_next * (~dones.unsqueeze(1))
-
-        target = (reward[:,:,0] + q_value_next * (~dones.unsqueeze(1))).detach()
+        target = (reward + q_value_next * (~dones.unsqueeze(1))).detach()
 
         loss = F.mse_loss(q_value, target)
         loss.backward()

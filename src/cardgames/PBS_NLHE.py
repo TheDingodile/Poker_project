@@ -28,6 +28,7 @@ class PBS_NLHE:
         self.all_hands = self.make_all_hands_list()
         self.total_reward = [0, 0]
         self.reward_list = []
+        self.done_list = []
 
     def make_all_hands_list(self) -> list[str]:
         all_hands = []
@@ -89,7 +90,7 @@ class PBS_NLHE:
         state = torch.stack(state)
         combined_state = torch.cat((state, self.public_belief_state.flatten(-2)), dim=1)
         rewards = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates, self.amount_players))
-        dones = torch.zeros(size=(self.NLHE_games.amount_tables, self.amount_infostates))
+        dones = torch.zeros(size=(self.NLHE_games.amount_tables,), dtype=torch.bool)
         return combined_state, rewards, dones, info
     
     def take_actions(self, states: torch.Tensor, agents: list[Agent]) -> torch.Tensor:
@@ -193,9 +194,8 @@ class PBS_NLHE:
         # action is shape (tables, infostates, action_space_size)
         idx_of_player_to_act = [game.player_to_act for game in self.NLHE_games.tables]
         indices = torch.arange(len(idx_of_player_to_act))
-
+        # print(self.public_belief_state[0])
         reward = self.get_reward_non_showdown(actions, idx_of_player_to_act)
-        # print(reward, "yo")
 
 
         # print(self.public_belief_state)
@@ -208,9 +208,10 @@ class PBS_NLHE:
 
         probabilities_infostates = actions[indices, :, sampled_actions]
         # print(self.action_to_list_of_string(sampled_actions)[0])
-        states, _, _, infos = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
-        self.total_reward = [self.total_reward[0] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]), self.total_reward[1] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 1])]
-        self.reward_list.append(torch.mean(torch.tensor(self.NLHE_games.rewards)[:, 0]))
+        states, _, dones, infos = self.NLHE_games.step(self.action_to_list_of_string(sampled_actions))
+        # self.total_reward = [self.total_reward[0] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]), self.total_reward[1] + torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 1])]
+        self.reward_list.append(torch.sum(torch.tensor(self.NLHE_games.rewards)[:, 0]))
+        self.done_list.append(torch.sum(torch.tensor(self.NLHE_games.dones)))
         # this part removes community cards from the public belief state
         for i, game in enumerate(self.NLHE_games.tables):
             # print(game.cards_of_this_round_community_cards)
@@ -226,7 +227,7 @@ class PBS_NLHE:
         self.public_belief_state[self.NLHE_games.dones] = 1 / self.amount_infostates
 
         states = torch.stack(states)
-        combined_state = torch.cat((states, self.public_belief_state.flatten(-2)), dim=1)
+        combined_state = torch.cat((states, self.public_belief_state.transpose(1,2).flatten(-2)), dim=1)
 
         return combined_state, reward, torch.tensor(self.NLHE_games.dones), self.NLHE_games.infos
 
